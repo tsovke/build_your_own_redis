@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#include <strings.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -149,4 +150,50 @@ static uint32_t do_get(const std::vector<std::string> &cmd, uint8_t *res,
   memcpy(res, val.data(), val.size());
   *reslen = (uint32_t)val.size();
   return RES_OK;
+}
+
+static uint32_t do_set(const std::vector<std::string> &cmd, uint8_t *res,
+                       uint32_t *reslen) {
+  (void)res;
+  (void)reslen;
+  g_map[cmd[1]] = cmd[2];
+  return RES_OK;
+}
+
+static uint32_t do_del(const std::vector<std::string> &cmd, uint8_t *res,
+                       uint32_t *reslen) {
+  (void)res;
+  (void)reslen;
+  g_map.erase(cmd[1]);
+  return RES_OK;
+}
+
+static bool cmd_is(const std::string &word, const char *cmd) {
+  return 0 == strcasecmp(word.c_str(), cmd);
+}
+
+static int32_t do_request(const uint8_t *req, uint32_t reqlen,
+                          uint32_t *rescode, uint8_t *res, uint32_t *reslen) {
+  std::vector<std::string> cmd;
+  if (0 != parse_req(req, reqlen, cmd)) {
+    msg("bad req");
+    return -1;
+  }
+  if (cmd.size() == 2 && cmd_is(cmd[0], "get")) {
+    *rescode = do_get(cmd, res, reslen);
+  } else if (cmd.size() == 3 && cmd_is(cmd[0], "set")) {
+    *rescode = do_set(cmd, res, reslen);
+  }else if (cmd.size()==2&&cmd_is(cmd[0],"del" ){
+    *rescode = do_del(cmd, res, reslen);
+    
+  }else{
+    // cmd is not recognized
+    *rescode = RES_ERR;
+    const char *msg = "Unknown cmd";
+    strcpy((char *)res, msg);
+    *reslen = strlen(msg);
+
+    return 0;
+  }
+  return 0;
 }
