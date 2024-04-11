@@ -326,5 +326,5 @@ static bool try_flush_buffer(Conn *conn) {
   }
 
   // still got some data in wbuf, could try to write again
-  return false;
+  return true;
 }
