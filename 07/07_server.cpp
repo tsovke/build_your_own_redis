@@ -296,4 +296,35 @@ static void state_req(Conn *conn) {
   }
 }
 
-static bool try_flush_buffer(Conn *conn) {}
+static bool try_flush_buffer(Conn *conn) {
+  ssize_t rv = 0;
+  do {
+    size_t remain = conn->wbuf_size - conn->wbuf_sent;
+    rv = write(conn->fd, &conn->wbuf[conn->wbuf_sent], remain);
+  } while (rv < 0 && errno == EINTR);
+
+  if (rv < 0 && errno == EAGAIN) {
+    // got EAGAIN, stop.
+    return false;
+  }
+
+  if (rv < 0) {
+    msg("write() error");
+    conn->state = STATE_END;
+    return false;
+  }
+
+  conn->wbuf_sent += (size_t)rv;
+
+  assert(conn->wbuf_sent <= conn->wbuf_size);
+  if (conn->wbuf_sent == conn->wbuf_size) {
+    // response was fully sent, change state back
+    conn->state = STATE_REQ;
+    conn->wbuf_sent = 0;
+    conn->wbuf_size = 0;
+    return false;
+  }
+
+  // still got some data in wbuf, could try to write again
+  return false;
+}
