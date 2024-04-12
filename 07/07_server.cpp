@@ -2,7 +2,6 @@
 #include <asm-generic/socket.h>
 #include <assert.h>
 #include <cerrno>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -232,7 +231,7 @@ static bool try_one_request(Conn *conn) {
   uint32_t rescode = 0;
   uint32_t wlen = 0;
   int32_t err =
-      do_request(&conn->rbuf[4], len, &rescode, &conn->[4 + 4], &wlen);
+      do_request(&conn->rbuf[4], len, &rescode, &conn->wbuf[4 + 4], &wlen);
   if (err) {
     conn->state = STATE_END;
     return false;
