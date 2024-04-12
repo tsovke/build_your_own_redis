@@ -418,5 +418,12 @@ int main() {
         }
       }
     }
+
+    // try to accept a new connection if the listening fd is active
+    if (poll_args[0].revents) {
+      (void)accept_new_conn(fd2conn, fd);
+    }
   }
+
+  return 0;
 }
