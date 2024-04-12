@@ -338,7 +338,7 @@ static bool try_flush_buffer(Conn *conn) {
 }
 
 static void state_res(Conn *conn) {
-  while (try_fill_buffer(conn)) {
+  while (try_flush_buffer(conn) {
   }
 }
 
