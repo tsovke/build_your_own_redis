@@ -71,6 +71,13 @@ struct Conn {
   uint8_t wbuf[4 + k_max_msg];
 };
 
+static void conn_put(std::vector<Conn *>&fd2conn,struct Conn *conn){
+  if (fd2conn.size()<=(size_t)conn->fd) {
+    fd2conn.resize(conn->fd+1);
+  }
+  fd2conn[conn->fd]=conn;
+}
+
 static int32_t accept_new_conn(std::vector<Conn *> &fd2conn, int fd) {
   // accept
   struct sockaddr_in client_addr = {};
