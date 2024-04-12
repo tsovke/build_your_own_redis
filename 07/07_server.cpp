@@ -403,5 +403,20 @@ int main() {
     if (rv < 0) {
       die("poll");
     }
+
+    // pocess active connections
+    for (size_t i = 1; i < poll_args.size(); ++i) {
+      if (poll_args[i].revents) {
+        Conn *conn = fd2conn[poll_args[i].fd];
+        connection_io(conn);
+        if (conn->state == STATE_END) {
+          // client closed normally, or something bad happened.
+          // destroy this connection
+          fd2conn[conn->fd] = NULL;
+          (void)close(conn->fd);
+          free(conn);
+        }
+      }
+    }
   }
 }
