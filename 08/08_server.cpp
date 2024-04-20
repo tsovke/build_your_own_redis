@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <errno.h>
 #include <fcntl.h>
+#include <netinet/in.h>
 #include <poll.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -74,4 +75,19 @@ static void conn_put(std::vector<Conn *> &fd2conn, struct Conn *conn) {
     fd2conn.resize(conn->fd + 1);
   }
   fd2conn[conn->fd] = conn;
+}
+
+static int32_t accept_new_conn(std::vector<Conn *> &fd2conn, int fd) {
+  // accept
+  struct sockaddr_in client_addr = {};
+  socklen_t socklen = sizeof(client_addr);
+  int connfd = accept(fd, (struct sockaddr *)&client_addr, &socklen);
+  if (connfd < 0) {
+    msg("accept() error");
+    return -1; // error
+  }
+
+  //set the new connection fd to nonblocking mode
+  fd_set_nb(connfd);
+  
 }
