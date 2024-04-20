@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <cstddef>
 #include <cstdlib>
+#include <forward_list>
 #include <stdlib.h>
 
 // n must be a power of 2
@@ -38,4 +39,10 @@ static HNode **h_lookup(HTab *htab, HNode *key, bool (*eq)(HNode *, HNode *)) {
     }
   }
   return NULL;
+}
+
+// remove a node from the chain
+static HNode *H_detach(HTab *htab,HNode **from){
+  HNode *node=*from;
+
 }
