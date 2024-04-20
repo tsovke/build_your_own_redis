@@ -1,8 +1,10 @@
 #include "hashtable.h"
 #include <assert.h>
+#include <csignal>
 #include <cstddef>
 #include <cstdlib>
 #include <forward_list>
+#include <regex>
 #include <stdlib.h>
 
 // n must be a power of 2
@@ -42,7 +44,7 @@ static HNode **h_lookup(HTab *htab, HNode *key, bool (*eq)(HNode *, HNode *)) {
 }
 
 // remove a node from the chain
-static HNode *H_detach(HTab *htab, HNode **from) {
+static HNode *h_detach(HTab *htab, HNode **from) {
   HNode *node = *from;
   *from = node->next;
   htab->size--;
@@ -61,7 +63,7 @@ static void hm_help_resizing(HMap *hmap) {
       continue;
     }
 
-    hm_insert(&hmap->ht1, H_detach(&hmap->ht2, from));
+    hm_insert(&hmap->ht1, h_detach(&hmap->ht2, from));
     nwork++;
   }
 
@@ -104,4 +106,23 @@ void hm_insert(HMap *hmap, HNode *node) {
     }
   }
   hm_help_resizing(hmap);
+}
+
+HNode *hm_pop(HMap *hmap, HNode *key, bool (*eq)(HNode *, HNode *)) {
+  hm_help_resizing(hmap);
+  if (HNode **from = h_lookup(&hmap->ht1, key, eq)) {
+    return h_detach(&hmap->ht1, from);
+  }
+  if (HNode **from = h_lookup(&hmap->ht2, key, eq)) {
+    return h_detach(&hmap->ht2, from);
+  }
+  return NULL;
+}
+
+size_t hm_size(HMap *hmap) { return hmap->ht1.size + hmap->ht2.size; }
+
+void hm_destroy(HMap *hmap) {
+  free(hmap->ht1.tab);
+  free(hmap->ht2.tab);
+  *hmap = HMap{};
 }
