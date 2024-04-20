@@ -172,3 +172,21 @@ static uint64_t str_hash(const uint8_t *data, size_t len) {
   }
   return h;
 }
+
+static uint32_t do_get(std::vector<std::string> &cmd, uint8_t *res,
+                       uint32_t *reslen) {
+  Entry key;
+  key.key.swap(cmd[1]);
+  key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+
+  HNode *node = hm_lookup(&g_data.db, &key.node, &entry_eq);
+  if (!node) {
+    return RES_NX;
+  }
+
+  const std::string &val = container_of(node, Entry, node)->val;
+  assert(val.size() <= k_max_msg);
+  memcpy(res, val.data(), val.size());
+  *reslen = (uint32_t)val.size();
+  return RES_OK;
+}
