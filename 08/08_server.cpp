@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <assert.h>
+#include <cstddef>
 #include <cstdlib>
 #include <errno.h>
 #include <fcntl.h>
@@ -28,3 +29,29 @@ static void die(const char *msg) {
   fprintf(stderr, "[%d] %s\n", err, msg);
   abort();
 }
+
+static void fd_set_nb(int fd) {
+  errno = 0;
+  int flags = fcntl(fd, F_GETFL, 0);
+  if (errno) {
+    die("fcntl error");
+    return;
+  }
+
+  flags |= O_NONBLOCK;
+
+  errno = 0;
+  (void)fcntl(fd, F_SETFL, flags);
+  if (errno) {
+    die("fcntl error");
+  }
+}
+
+const size_t k_max_msg = 4096;
+
+enum {
+  STATE_REQ = 0,
+  STATE_RES = 1,
+  STATE_END = 2, // mark the connection for deletion
+};
+
