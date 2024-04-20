@@ -63,7 +63,7 @@ static void hm_help_resizing(HMap *hmap) {
       continue;
     }
 
-    hm_insert(&hmap->ht1, h_detach(&hmap->ht2, from));
+    h_insert(&hmap->ht1, h_detach(&hmap->ht2, from));
     nwork++;
   }
 
