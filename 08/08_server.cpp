@@ -140,3 +140,21 @@ static int32_t parse_req(const uint8_t *data, size_t len,
   }
   return 0;
 }
+
+enum {
+  RES_OK = 0,
+  RES_ERR = 1,
+  RES_NX = 2,
+};
+
+// The data structure for the key space.
+static struct {
+  HMap db;
+} g_data;
+
+// the structure for the key
+struct Entry {
+  struct HNode node;
+  std::string key;
+  std::string val;
+};
