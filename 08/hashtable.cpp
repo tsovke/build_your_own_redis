@@ -20,3 +20,22 @@ static void hm_insert(HTab *htab, HNode *node) {
   htab->tab[pos] = node;
   htab->size++;
 }
+
+// hashtable look up subroutine.
+// Pay attention to the return value. It returns the address of
+// the parent pointer that owns the target node,
+// which can be used to delete the target node.
+static HNode **h_lookup(HTab *htab, HNode *key, bool (*eq)(HNode *, HNode *)) {
+  if (!htab->tab) {
+    return NULL;
+  }
+
+  size_t pos = key->hcode & htab->mask;
+  HNode **from = &htab->tab[pos]; // incoming pointer to the result
+  for (HNode *cur; (cur = *from) != NULL; from = &cur->next) {
+    if (cur->hcode == key->hcode && eq(cur, key)) {
+      return from;
+    }
+  }
+  return NULL;
+}
