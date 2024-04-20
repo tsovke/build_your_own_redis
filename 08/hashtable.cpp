@@ -71,3 +71,11 @@ static void hm_help_resizing(HMap *hmap) {
     hmap->ht2 = HTab{};
   }
 }
+
+static void hm_start_resizing(HMap *hmap) {
+  assert(hmap->ht2.tab == NULL);
+  // create a bigger hashtable and swap them
+  hmap->ht2 = hmap->ht1;
+  h_init(&hmap->ht1, (hmap->ht1.mask + 1) * 2);
+  hmap->resizing_pos = 0;
+}
