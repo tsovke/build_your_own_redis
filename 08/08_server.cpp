@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <assert.h>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <errno.h>
 #include <fcntl.h>
@@ -11,6 +12,7 @@
 #include <string.h>
 #include <string>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <vector>
 // proj
@@ -55,3 +57,21 @@ enum {
   STATE_END = 2, // mark the connection for deletion
 };
 
+struct Conn {
+  int fd = -1;
+  uint32_t state = 0; // either STATE_REQ or STATE_RES
+  // buffer for reading
+  size_t rbuf_size = 0;
+  uint8_t rbuf[4 + k_max_msg];
+  // buffer for writing
+  size_t wbuf_size = 0;
+  size_t wbuf_sent = 0;
+  uint8_t wbuf[4 + k_max_msg];
+};
+
+static void conn_put(std::vector<Conn *> &fd2conn, struct Conn *conn) {
+  if (fd2conn.size() <= (size_t)conn->fd) {
+    fd2conn.resize(conn->fd + 1);
+  }
+  fd2conn[conn->fd] = conn;
+}
