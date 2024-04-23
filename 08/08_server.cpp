@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#include <strings.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -226,4 +227,70 @@ static uint32_t do_del(std::vector<std::string> &cmd, uint8_t *res,
     delete container_of(node, Entry, node);
   }
   return RES_OK;
+}
+
+static bool cmd_is(const std::string &word, const char *cmd) {
+  return 0 == strcasecmp(word.c_str(), cmd);
+}
+
+static int32_t do_request(const uint8_t *req, uint8_t reqlen, uint32_t *rescode,
+                          uint8_t *res, uint32_t *reslen) {
+  std::vector<std::string> cmd;
+
+  if (0 != parse_req(req, reqlen, cmd)) {
+    msg("bad req");
+    return -1;
+  }
+
+  if (cmd.size() == 2 && cmd_is(cmd[0], "get")) {
+    *rescode = do_get(cmd, res, reslen);
+  } else if (cmd.size() == 3 && cmd_is(cmd[0], "set")) {
+    *rescode = do_set(cmd, res, reslen);
+  } else if (cmd.size() == 2 && cmd_is(cmd[0], "del")) {
+    *rescode = do_del(cmd, res, reslen);
+  } else {
+    // cmd is not recognized
+    *rescode = RES_ERR;
+    const char *msg = "Unknown cmd";
+    strcpy((char *)res, msg);
+    *reslen = strlen(msg);
+    return 0;
+  }
+  return 0;
+}
+
+static bool try_one_request(Conn *conn) {
+  // try to parse a request from the buffer
+  if (conn->rbuf_size < 4) {
+    // not enough data in the buffer. Will retry in the next iteration
+    return false;
+  }
+
+  uint32_t len = 0;
+  memcpy(&len, &conn->rbuf[0], 4);
+  if (len > k_max_args) {
+    msg("too long");
+    conn->state = STATE_END;
+    return false;
+  }
+
+  if (4 + len > conn->rbuf_size) {
+    // not enough data in the buffer. Will retry in the next iteration
+    return false;
+  }
+
+  // got one request,generate the response.
+  uint32_t rescode = 0;
+  uint32_t wlen = 0;
+  int32_t err =
+      do_request(&conn->rbuf[4], len, &rescode, &conn->wbuf[4 + 4], &wlen);
+  if (err) {
+    conn->state = STATE_END;
+    return false;
+  }
+
+  wlen += 4;
+  memcpy(&conn->wbuf[0], &wlen, 4);
+  memcpy(&conn->wbuf[4], &rescode, 4);
+  conn->wbuf_size = 4 + wlen;
 }
