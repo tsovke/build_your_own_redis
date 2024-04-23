@@ -353,6 +353,12 @@ static bool try_fill_buffer(Conn *conn) {
   return (conn->state == STATE_REQ);
 }
 
+static void state_req(Conn *conn) {
+  while (try_fill_buffer(conn) {
+  
+  }
+}
+
 static bool try_flush_buffer(Conn *conn) {
   ssize_t rv = 0;
   do {
