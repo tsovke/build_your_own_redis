@@ -2,6 +2,7 @@
 #include <asm-generic/socket.h>
 #include <assert.h>
 #include <cerrno>
+#include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -441,5 +442,46 @@ int main() {
     poll_args.clear();
 
     // for convenience, the listening fd is put in the first position
+    struct pollfd pfd = {fd, POLLIN, 0};
+    poll_args.push_back(pfd);
+    // connection fds
+    for (Conn *conn : fd2conn) {
+      if (!conn) {
+        continue;
+      }
+
+      struct pollfd pfd = {};
+      pfd.fd = conn->fd;
+      pfd.events = (conn->state == STATE_REQ) ? POLLIN : POLLOUT;
+      pfd.events = pfd.events | POLLERR;
+      poll_args.push_back(pfd);
+    }
+
+    // poll for active fds
+    // the timeout argument doesn't matter here
+    int rv = poll(poll_args.data(), (nfds_t)poll_args.size(), 1000);
+    if (rv < 0) {
+      die("poll");
+    }
+    // process active connections
+    for (size_t i = 1; i < poll_args.size(); ++i) {
+      if (poll_args[i].revents) {
+        Conn *conn = fd2conn[poll_args[i].fd];
+        connection_io(conn);
+        if (conn->state == STATE_END) {
+          // client closed normally, or something bad happened.
+          // destroy this connection
+          fd2conn[conn->fd] = NULL;
+          (void)close(conn->fd);
+          free(conn);
+        }
+      }
+    }
+
+    // try to accept a new connection if the listening fd is active
+    if (poll_args[0].revents) {
+      (void)accept_new_conn(fd2conn, fd);
+    }
   }
+  return 0;
 }
