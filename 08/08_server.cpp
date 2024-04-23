@@ -212,3 +212,18 @@ static uint32_t do_set(std::vector<std::string> &cmd, uint8_t *res,
   }
   return RES_OK;
 }
+
+static uint32_t do_del(std::vector<std::string> &cmd, uint8_t *res,
+                       uint32_t *reslen) {
+  (void)res;
+  (void)reslen;
+
+  Entry key;
+  key.key.swap(cmd[1]);
+  key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+  HNode *node = hm_pop(&g_data.db, &key.node, &entry_eq);
+  if (node) {
+    delete container_of(node, Entry, node);
+  }
+  return RES_OK;
+}
