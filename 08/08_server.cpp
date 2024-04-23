@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <assert.h>
+#include <cerrno>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -7,6 +8,7 @@
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <poll.h>
+#include <regex>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -293,4 +295,60 @@ static bool try_one_request(Conn *conn) {
   memcpy(&conn->wbuf[0], &wlen, 4);
   memcpy(&conn->wbuf[4], &rescode, 4);
   conn->wbuf_size = 4 + wlen;
+
+  // remove the request from the buffer.
+  // note: frequet memmove is inefficient.
+  // note: need better handing for production code.
+
+  size_t remain = conn->rbuf_size - 4 - len;
+  if (remain) {
+    memmove(conn->rbuf, &conn->rbuf[4 + len], remain);
+  }
+
+  conn->rbuf_size = remain;
+
+  // change state
+  conn->state = STATE_RES;
+  state_res(conn);
+
+  // continue the outer loop if the request was fully processed
+  return (conn->state == STATE_REQ);
+}
+
+static bool try_fill_buffer(Conn *conn) {
+  // try to fill the buffer
+  assert(conn->rbuf_size < sizeof(conn->rbuf));
+  ssize_t rv = 0;
+  do {
+    size_t cap = sizeof(conn->rbuf) - conn->rbuf_size;
+    rv = read(conn->fd, &conn->rbuf[conn->rbuf_size], cap);
+  } while (rv < 0 && errno == EINTR);
+  if (rv < 0 && errno == EAGAIN) {
+    // got EAGAIN, stop.
+    return false;
+  }
+  if (rv < 0) {
+    msg("read() error");
+    conn->state = STATE_END;
+    return false;
+  }
+
+  if (rv == 0) {
+    if (conn->rbuf_size > 0) {
+      msg("unexpected EOF");
+    } else {
+      msg("EOF");
+    }
+    conn->state = STATE_END;
+    return false;
+  }
+
+  conn->rbuf_size += (size_t)rv;
+  assert(conn->rbuf_size <= sizeof(conn->rbuf));
+
+  // Try to process requests one by one.
+  // Why is thers a loop? Please read the explanation of "pipelining".
+  while (try_one_request(conn)) {
+    return (conn->state == STATE_REQ);
+  }
 }
