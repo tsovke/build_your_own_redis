@@ -357,8 +357,7 @@ static bool try_fill_buffer(Conn *conn) {
 }
 
 static void state_req(Conn *conn) {
-  while (try_fill_buffer(conn) {
-  
+  while (try_fill_buffer(conn)) {
   }
 }
 
