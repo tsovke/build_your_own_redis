@@ -389,4 +389,12 @@ static void state_res(Conn *conn) {
   }
 }
 
-
+static void connection_io(Conn *conn) {
+  if (conn->state == STATE_REQ) {
+    state_req(conn);
+  } else if (conn->state == STATE_RES) {
+    state_res(conn);
+  } else {
+    assert(0); // not expected
+  }
+}
