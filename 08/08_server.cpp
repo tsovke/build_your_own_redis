@@ -383,3 +383,10 @@ static bool try_flush_buffer(Conn *conn) {
   // still got some data in wbuf, could try to write again
   return true;
 }
+
+static void state_res(Conn *conn) {
+  while (try_flush_buffer(conn)) {
+  }
+}
+
+
