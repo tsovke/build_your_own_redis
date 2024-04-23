@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <asm-generic/socket.h>
 #include <assert.h>
 #include <cerrno>
 #include <cstddef>
@@ -15,6 +16,7 @@
 #include <string.h>
 #include <string>
 #include <strings.h>
+#include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -402,5 +404,42 @@ static void connection_io(Conn *conn) {
     state_res(conn);
   } else {
     assert(0); // not expected
+  }
+}
+
+int main() {
+  int fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (fd < 0) {
+    die("socket()");
+  }
+  int val = 1;
+  setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+  // bind
+  struct sockaddr_in addr = {};
+  addr.sin_family = AF_INET;
+  addr.sin_port = ntohs(0); // wildcard address 0.0.0.0
+  int rv = bind(fd, (const sockaddr *)&addr, sizeof(addr));
+  if (rv) {
+    die("bind()");
+  }
+  // listen
+  rv = listen(fd, SOMAXCONN);
+  if (rv) {
+    die("listen()");
+  }
+
+  // a map of all client connections, keyed by fd
+  std::vector<Conn *> fd2conn;
+
+  // set the listen fd to nonblocking mode
+  fd_set_nb(fd);
+
+  // the event loop
+  std::vector<struct pollfd> poll_args;
+  while (true) {
+    // prepare the arguments of the poll()
+    poll_args.clear();
+
+    // for convenience, the listening fd is put in the first position
   }
 }
