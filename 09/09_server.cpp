@@ -160,3 +160,59 @@ static bool entry_eq(HNode *lhs, HNode *rhs) {
   struct Entry *re = container_of(rhs, struct Entry, node);
   return le->key == re->key;
 }
+
+static uint64_t str_hash(const uint8_t *data, size_t len) {
+  uint32_t h = 0x811C9DC5;
+  for (size_t i = 0; i < len; ++i) {
+    h = (h + data[i]) * 0x01000193;
+  }
+  return h;
+}
+
+enum {
+  ERR_UNKNOWN = 1,
+  ERR_2BIG = 2,
+};
+
+enum {
+  SER_NIL = 0,
+  SER_ERR = 1,
+  SER_STR = 2,
+  SER_INT = 3,
+  SER_ARR = 4,
+};
+
+static void out_nil(std::string &out) { out.push_back(SER_NIL); }
+
+static void out_str(std::string &out, const std::string &val) {
+  out.push_back(SER_STR);
+  uint32_t len = (uint32_t)val.size();
+  out.append((char *)&len, 4);
+  out.append(val);
+}
+
+static void out_int(std::string &out, int64_t val) {
+  out.push_back(SER_INT);
+  out.append((char *)&val, 8);
+}
+
+static void out_err(std::string &out, int32_t code, const std::string &msg) {
+  out.push_back(SER_ERR);
+  out.append((char *)&code, 4);
+  uint32_t len = (uint32_t)msg.size();
+  out.append((char *)&len, 4);
+  out.append(msg);
+}
+
+static void out_arr(std::string &out, uint32_t n) {
+  out.push_back(SER_ARR);
+  out.append((char *)&n, 4);
+}
+
+static void do_get(std::vector<std::string> &cmd,std::string &out){
+  Entry key;
+  key.key.swap(cmd[1]);
+  key.node.hcode=str_hash((uint8_t *)key.key.data(),key.key.size() );
+
+  HNode *node=hm_lookup(, , )
+}
