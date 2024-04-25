@@ -83,54 +83,95 @@ enum {
   SER_ARR = 4,
 };
 
-static int32_t on_response(const uint8_t *data,size_t size){
-  if(size <1){
+static int32_t on_response(const uint8_t *data, size_t size) {
+  if (size < 1) {
     msg("bad response");
     return -1;
   }
-  switch(data[0]){
-    case SER_NIL:
+  switch (data[0]) {
+  case SER_NIL:
     printf("(nil)\n");
     return 1;
-    case SER_ERR:
-      if (size<1+8) {
+  case SER_ERR:
+    if (size < 1 + 8) {
+      msg("bad response");
+      return -1;
+    }
+    {
+      int32_t code = 0;
+      uint32_t len = 0;
+      memcpy(&code, &data[1], 4);
+      memcpy(&len, &data[1 + 4], 4);
+      if (size < 1 + 8 + len) {
         msg("bad response");
         return -1;
       }
-      {
-        int32_t code=0;
-        uint32_t len=0;
-        memcpy(&code,&data[1] ,4 );
-        memcpy(&len,&data[1+4] ,4 );
-        if (size<1+8+len) {
-          msg("bad response");return -1;
+      printf("(err) %d %.*s.\n", code, len, &data[1 + 8]);
+      return 1 + 8 + len;
+    }
+  case SER_STR:
+    if (size < 1 + 4) {
+      msg("bad response");
+      return -1;
+    }
+    {
+      uint32_t len = 0;
+      memcpy(&len, &data[1], 4);
+      if (size < 1 + 4 + len) {
+        msg("bad response");
+        return -1;
+      }
+      printf("(str) %.*s\n", len, &data[1 + 4]);
+      return 1 + 4 + len;
+    }
+  case SER_INT:
+    if (size < 1 + 8) {
+      msg("bad response");
+      return -1;
+    }
+    {
+      int64_t val = 0;
+      memcpy(&val, &data[1], 8);
+      printf("(int) %ld\n", val);
+      return 1 + 8;
+    }
+  case SER_ARR:
+    if (size < 1 + 4) {
+      msg("bad response");
+      return -1;
+    }
+    {
+      uint32_t len = 0;
+      memcpy(&len, &data[1], 4);
+      printf("(arr) len=%u\n", len);
+      size_t arr_bytes = 1 + 4;
+      for (uint32_t i = 0; i < len; ++i) {
+        int32_t rv = on_response(&data[arr_bytes], size - arr_bytes);
+        if (rv < 0) {
+          return rv;
         }
-        printf("(err) %d %.*s.\n",code,len,&data[1+8]);
-        return 1+8+len;
+        arr_bytes += (size_t)rv;
       }
-    case SER_STR:
-      if (size<1+4) {
-        msg("bad response");
-        return -1;
-      }{
-        uint32_t len=0;
-        memcpy(&len,&data[1] ,4 );
-        if (size <1+4+len) {
-          msg("bad response");
-          return -1;        
-        }
-        printf("(str) %.*s\n",len,&data[1+4]);
-        return 1+4+len;
-      }
-    case SER_INT:
-      if (size<1+8) {
-        msg("bad response");
-        return -1;
-      }
-      {
-        int64_t val=0;
-        
-      }
-    case SER_ARR:
+      printf("(arr) end\n");
+      return (int32_t)arr_bytes;
+    }
+  default:
+    msg("bad response");
+    return -1;
+  }
+}
+
+static int32_t read_res(int fd) {
+  // 4 bytes header
+  char rbuf[4 + k_max_msg + 1];
+  errno = 0;
+  int32_t err = read_full(fd, rbuf, 4);
+  if (err) {
+    if (errno == 0) {
+      msg("EOF");
+    } else {
+      msg("read() error");
+    }
+    return err;
   }
 }
