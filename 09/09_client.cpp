@@ -5,7 +5,9 @@
 #include <cstdlib>
 #include <ctime>
 #include <errno.h>
+#include <netinet/in.h>
 #include <netinet/ip.h>
+#include <random>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -174,4 +176,59 @@ static int32_t read_res(int fd) {
     }
     return err;
   }
+
+  uint32_t len = 0;
+  memcpy(&len, rbuf, 4); // assume little endian
+  if (len > k_max_msg) {
+    msg("too long");
+    return -1;
+  }
+
+  // reply body
+  err = read_full(fd, &rbuf[4], len);
+  if (err) {
+    msg("read() error");
+    return err;
+  }
+
+  // print the result
+  int32_t rv = on_response((uint8_t *)&rbuf[4], len);
+  if (rv > 0 && (uint32_t)rv != len) {
+    msg("bad response");
+    rv = -1;
+  }
+  return rv;
+}
+
+int main(int argc, char **argv) {
+  int fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (fd < 0) {
+    die("socket()");
+  }
+
+  struct sockaddr_in addr = {};
+  addr.sin_family = AF_INET;
+  addr.sin_port = ntohs(1234);
+  addr.sin_addr.s_addr = ntohl(INADDR_LOOPBACK); // 127.0.0.1
+  int rv = connect(fd, (const struct sockaddr *)&addr, sizeof(addr));
+  if (rv) {
+    die("connect");
+  }
+
+  std::vector<std::string> cmd;
+  for (int i = 0; i < argc; ++i) {
+    cmd.push_back(argv[i]);
+  }
+  int32_t err = send_req(fd, cmd);
+  if (err) {
+    goto L_DONE;
+  }
+  err = read_res(fd);
+  if (err) {
+    goto L_DONE;
+  }
+
+L_DONE:
+  close(fd);
+  return 0;
 }
