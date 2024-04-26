@@ -14,8 +14,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#include <strings.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <type_traits>
 #include <unistd.h>
 #include <vector>
 // proj
@@ -238,4 +240,89 @@ static void do_set(std::vector<std::string> &cmd, std::string &out) {
     hm_insert(&g_data.db, &ent->node);
   }
   return out_nil(out);
+}
+
+static void do_del(std::vector<std::string> &cmd, std::string &out) {
+  Entry key;
+  key.key.swap(cmd[1]);
+  key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+
+  HNode *node = hm_lookup(&g_data.db, &key.node, &entry_eq);
+  if (node) {
+    delete container_of(node, Entry, node);
+  }
+  return out_int(out, node ? 1 : 0);
+}
+
+static void h_scan(HTab *tab, void (*f)(HNode *, void *), void *arg) {
+  if (tab->size == 0) {
+    return;
+  }
+  for (size_t i = 0; i < tab->mask + 1; ++i) {
+    HNode *node = tab->tab[i];
+    while (node) {
+      f(node, arg);
+      node = node->next;
+    }
+  }
+}
+
+static void cb_scan(HNode *node, void *arg) {
+  std::string &out = *(std::string *)arg;
+  out_str(out, container_of(node, Entry, node)->key);
+}
+
+static void do_keys(std::vector<std::string> &cmd, std::string &out) {
+  (void)cmd;
+  out_arr(out, (uint32_t)hm_size(&g_data.db));
+  h_scan(&g_data.db.ht1, &cb_scan, &out);
+  h_scan(&g_data.db.ht2, &cb_scan, &out);
+}
+
+static bool cmd_is(const std::string &word, const char *cmd) {
+  return 0 == strcasecmp(word.c_str(), cmd);
+}
+
+static void do_request(std::vector<std::string> &cmd, std::string &out) {
+  if (cmd.size() == 1 && cmd_is(cmd[0], "key")) {
+    do_keys(cmd, out);
+  } else if (cmd.size() == 2 && cmd_is(cmd[0], "get")) {
+    do_get(cmd, out);
+  } else if (cmd.size() == 3 && cmd_is(cmd[0], "set")) {
+    do_set(cmd, out);
+  } else if (cmd.size() == 2 && cmd_is(cmd[0], "del")) {
+    do_del(cmd, out);
+  } else {
+    // cmd is not recognized
+    out_err(out, ERR_UNKNOWN, "Unknown cmd");
+  }
+}
+
+static bool try_one_requet(Conn *conn) {
+  // try to parse a request from the buffer
+  if (conn->rbuf_size < 4) {
+    // not enough data in the buffer. Will retry in the next iteration
+    return false;
+  }
+
+  uint32_t len = 0;
+  memcpy(&len, &conn->rbuf[0], 4);
+  if (len > k_max_msg) {
+    msg("too long");
+    conn->state = STATE_END;
+    return false;
+  }
+
+  if (4 + len > conn->rbuf_size) {
+    // not enough data in the buffer. Will retry in the next iteration
+    return false;
+  }
+
+  // parse the request
+  std::vector<std::string> cmd;
+  if (0 != parse_req(&conn->rbuf[4], len, cmd)) {
+    msg("bad req");
+    conn->state = STATE_END;
+    return false;
+  }
 }
