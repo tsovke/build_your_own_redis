@@ -434,3 +434,19 @@ static bool try_flush_buffer(Conn *conn) {
   // still got some data in wbuf, could try to write again
   return true;
 }
+
+static void state_res(Conn *conn) {
+  while (try_flush_buffer(conn)) {
+  }
+}
+
+static void connection_io(Conn *conn) {
+  if (conn->state == STATE_REQ) {
+    state_req(conn);
+  } else if (conn->state == STATE_REQ) {
+    state_res(conn);
+
+  } else {
+    assert(0); // not expected
+  }
+}
