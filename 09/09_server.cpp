@@ -1,5 +1,8 @@
+#include <algorithm>
 #include <arpa/inet.h>
 #include <assert.h>
+#include <cerrno>
+#include <csignal>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -17,6 +20,7 @@
 #include <strings.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <type_traits>
 #include <unistd.h>
 #include <vector>
@@ -325,4 +329,73 @@ static bool try_one_requet(Conn *conn) {
     conn->state = STATE_END;
     return false;
   }
+
+  // got one request, generate the response.
+  std::string out;
+  do_request(cmd, out);
+
+  // pack the response into the buffer
+  if (4 + out.size() > k_max_msg) {
+    out.clear();
+    out_err(out, ERR_2BIG, "response is too big");
+  }
+  uint32_t wlen = (uint32_t)out.size();
+  memcpy(&conn->wbuf[0], &wlen, 4);
+  memcpy(&conn->wbuf[4], out.data(), out.size());
+  conn->wbuf_size = 4 + wlen;
+
+  // remove the request from the buffer.
+  // note: frequent memmove is inefficient.
+  // note: need better handling for production code.
+  size_t remain = conn->rbuf_size - 4 - len;
+  if (remain) {
+    memmove(conn->rbuf, &conn->rbuf[4 + len], remain);
+  }
+  conn->rbuf_size = remain;
+
+  // change state
+  conn->state = STATE_RES;
+  state_res(conn);
+
+  // continue the outer loop if the request was fully processed
+  return (conn->state == STATE_REQ);
+}
+
+static bool try_fill_buffer(Conn *conn) {
+  // try to fill the buffer
+  assert(conn->rbuf_size < sizeof(conn->rbuf));
+  ssize_t rv = 0;
+  do {
+    size_t cap = sizeof(conn->rbuf) - conn->rbuf_size;
+    rv = read(conn->fd, &conn->rbuf[conn->rbuf_size], cap);
+
+  } while (rv < 0 && errno == EINTR);
+  if (rv < 0 && errno == EAGAIN) {
+    // got EAGAIN, stop.
+    return false;
+  }
+  if (rv < 0) {
+    msg("read() error");
+    conn->state = STATE_END;
+    return false;
+  }
+
+  if (rv == 0) {
+    if (conn->rbuf_size > 0) {
+      msg("unexpected EOF");
+    } else {
+      msg("EOF");
+    }
+    conn->state = STATE_END;
+    return false;
+  }
+
+  conn->rbuf_size += (size_t)rv;
+  assert(conn->rbuf_size <= sizeof(conn->rbuf));
+
+  // Try to process requests one by one.
+  // Why is there a loop? Please read the explanation of "pipelining".
+  while (try_one_requet(conn)) {
+  }
+  return (conn->state == STATE_REQ);
 }
