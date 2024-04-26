@@ -221,3 +221,21 @@ static void do_get(std::vector<std::string> &cmd, std::string &out) {
   const std::string &val = container_of(node, Entry, node)->val;
   out_str(out, val);
 }
+
+static void do_set(std::vector<std::string> &cmd, std::string &out) {
+  Entry key;
+  key.key.swap(cmd[1]);
+  key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+
+  HNode *node = hm_lookup(&g_data.db, &key.node, &entry_eq);
+  if (node) {
+    container_of(node, Entry, node)->val.swap(cmd[2]);
+  } else {
+    Entry *ent = new Entry();
+    ent->key.swap(key.key);
+    ent->node.hcode = key.node.hcode;
+    ent->val.swap(cmd[2]);
+    hm_insert(&g_data.db, &ent->node);
+  }
+  return out_nil(out);
+}
