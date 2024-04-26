@@ -1,20 +1,13 @@
 #include <arpa/inet.h>
 #include <assert.h>
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
-#include <ctime>
 #include <errno.h>
-#include <netinet/in.h>
 #include <netinet/ip.h>
-#include <random>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <vector>
 
@@ -108,7 +101,7 @@ static int32_t on_response(const uint8_t *data, size_t size) {
         msg("bad response");
         return -1;
       }
-      printf("(err) %d %.*s.\n", code, len, &data[1 + 8]);
+      printf("(err) %d %.*s\n", code, len, &data[1 + 8]);
       return 1 + 8 + len;
     }
   case SER_STR:
@@ -216,7 +209,7 @@ int main(int argc, char **argv) {
   }
 
   std::vector<std::string> cmd;
-  for (int i = 0; i < argc; ++i) {
+  for (int i = 1; i < argc; ++i) {
     cmd.push_back(argv[i]);
   }
   int32_t err = send_req(fd, cmd);

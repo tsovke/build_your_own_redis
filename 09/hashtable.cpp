@@ -1,10 +1,5 @@
 #include "hashtable.h"
 #include <assert.h>
-#include <charconv>
-#include <cstddef>
-#include <cstdlib>
-#include <endian.h>
-#include <new>
 #include <stdlib.h>
 
 // n must be a power of 2
@@ -36,7 +31,6 @@ static HNode **h_lookup(HTab *htab, HNode *key, bool (*eq)(HNode *, HNode *)) {
   size_t pos = key->hcode & htab->mask;
   HNode **from = &htab->tab[pos]; // incoming pointer to the result
   for (HNode *cur; (cur = *from) != NULL; from = &cur->next) {
-
     if (cur->hcode == key->hcode && eq(cur, key)) {
       return from;
     }
@@ -79,7 +73,7 @@ static void hm_start_resizing(HMap *hmap) {
   assert(hmap->ht2.tab == NULL);
   // create a bigger hashtable and swap them
   hmap->ht2 = hmap->ht1;
-  h_init(&hmap->ht1, (hmap->ht1.mask) * 2);
+  h_init(&hmap->ht1, (hmap->ht1.mask + 1) * 2);
   hmap->resizing_pos = 0;
 }
 
@@ -97,6 +91,7 @@ void hm_insert(HMap *hmap, HNode *node) {
     h_init(&hmap->ht1, 4);
   }
   h_insert(&hmap->ht1, node);
+
   if (!hmap->ht2.tab) {
     // check whether we need to resize
     size_t load_factor = hmap->ht1.size / (hmap->ht1.mask + 1);

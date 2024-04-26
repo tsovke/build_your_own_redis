@@ -1,30 +1,15 @@
-#include <algorithm>
 #include <arpa/inet.h>
-#include <asm-generic/socket.h>
 #include <assert.h>
-#include <cerrno>
-#include <csignal>
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
 #include <errno.h>
 #include <fcntl.h>
-#include <memory>
-#include <netinet/in.h>
 #include <netinet/ip.h>
 #include <poll.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <streambuf>
 #include <string.h>
 #include <string>
-#include <strings.h>
-#include <sys/poll.h>
-#include <sys/select.h>
 #include <sys/socket.h>
-#include <sys/types.h>
-#include <type_traits>
 #include <unistd.h>
 #include <vector>
 // proj
@@ -82,7 +67,7 @@ struct Conn {
 };
 
 static void conn_put(std::vector<Conn *> &fd2conn, struct Conn *conn) {
-  if (fd2conn.size() < (size_t)conn->fd) {
+  if (fd2conn.size() <= (size_t)conn->fd) {
     fd2conn.resize(conn->fd + 1);
   }
   fd2conn[conn->fd] = conn;
@@ -106,7 +91,6 @@ static int32_t accept_new_conn(std::vector<Conn *> &fd2conn, int fd) {
     close(connfd);
     return -1;
   }
-
   conn->fd = connfd;
   conn->state = STATE_REQ;
   conn->rbuf_size = 0;
@@ -126,7 +110,6 @@ static int32_t parse_req(const uint8_t *data, size_t len,
   if (len < 4) {
     return -1;
   }
-
   uint32_t n = 0;
   memcpy(&n, &data[0], 4);
   if (n > k_max_args) {
@@ -146,18 +129,19 @@ static int32_t parse_req(const uint8_t *data, size_t len,
     out.push_back(std::string((char *)&data[pos + 4], sz));
     pos += 4 + sz;
   }
+
   if (pos != len) {
     return -1; // trailing garbage
   }
   return 0;
 }
 
-// The data struccture for the key space.
+// The data structure for the key space.
 static struct {
   HMap db;
 } g_data;
 
-// the structure for the key.
+// the structure for the key
 struct Entry {
   struct HNode node;
   std::string key;
@@ -172,7 +156,7 @@ static bool entry_eq(HNode *lhs, HNode *rhs) {
 
 static uint64_t str_hash(const uint8_t *data, size_t len) {
   uint32_t h = 0x811C9DC5;
-  for (size_t i = 0; i < len; ++i) {
+  for (size_t i = 0; i < len; i++) {
     h = (h + data[i]) * 0x01000193;
   }
   return h;
@@ -227,6 +211,7 @@ static void do_get(std::vector<std::string> &cmd, std::string &out) {
   if (!node) {
     return out_nil(out);
   }
+
   const std::string &val = container_of(node, Entry, node)->val;
   out_str(out, val);
 }
@@ -254,7 +239,7 @@ static void do_del(std::vector<std::string> &cmd, std::string &out) {
   key.key.swap(cmd[1]);
   key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
 
-  HNode *node = hm_lookup(&g_data.db, &key.node, &entry_eq);
+  HNode *node = hm_pop(&g_data.db, &key.node, &entry_eq);
   if (node) {
     delete container_of(node, Entry, node);
   }
@@ -291,7 +276,7 @@ static bool cmd_is(const std::string &word, const char *cmd) {
 }
 
 static void do_request(std::vector<std::string> &cmd, std::string &out) {
-  if (cmd.size() == 1 && cmd_is(cmd[0], "key")) {
+  if (cmd.size() == 1 && cmd_is(cmd[0], "keys")) {
     do_keys(cmd, out);
   } else if (cmd.size() == 2 && cmd_is(cmd[0], "get")) {
     do_get(cmd, out);
@@ -305,13 +290,12 @@ static void do_request(std::vector<std::string> &cmd, std::string &out) {
   }
 }
 
-static bool try_one_requet(Conn *conn) {
+static bool try_one_request(Conn *conn) {
   // try to parse a request from the buffer
   if (conn->rbuf_size < 4) {
     // not enough data in the buffer. Will retry in the next iteration
     return false;
   }
-
   uint32_t len = 0;
   memcpy(&len, &conn->rbuf[0], 4);
   if (len > k_max_msg) {
@@ -319,7 +303,6 @@ static bool try_one_requet(Conn *conn) {
     conn->state = STATE_END;
     return false;
   }
-
   if (4 + len > conn->rbuf_size) {
     // not enough data in the buffer. Will retry in the next iteration
     return false;
@@ -371,7 +354,6 @@ static bool try_fill_buffer(Conn *conn) {
   do {
     size_t cap = sizeof(conn->rbuf) - conn->rbuf_size;
     rv = read(conn->fd, &conn->rbuf[conn->rbuf_size], cap);
-
   } while (rv < 0 && errno == EINTR);
   if (rv < 0 && errno == EAGAIN) {
     // got EAGAIN, stop.
@@ -382,7 +364,6 @@ static bool try_fill_buffer(Conn *conn) {
     conn->state = STATE_END;
     return false;
   }
-
   if (rv == 0) {
     if (conn->rbuf_size > 0) {
       msg("unexpected EOF");
@@ -398,7 +379,7 @@ static bool try_fill_buffer(Conn *conn) {
 
   // Try to process requests one by one.
   // Why is there a loop? Please read the explanation of "pipelining".
-  while (try_one_requet(conn)) {
+  while (try_one_request(conn)) {
   }
   return (conn->state == STATE_REQ);
 }
@@ -413,7 +394,6 @@ static bool try_flush_buffer(Conn *conn) {
   do {
     size_t remain = conn->wbuf_size - conn->wbuf_sent;
     rv = write(conn->fd, &conn->wbuf[conn->wbuf_sent], remain);
-
   } while (rv < 0 && errno == EINTR);
   if (rv < 0 && errno == EAGAIN) {
     // got EAGAIN, stop.
@@ -427,7 +407,7 @@ static bool try_flush_buffer(Conn *conn) {
   conn->wbuf_sent += (size_t)rv;
   assert(conn->wbuf_sent <= conn->wbuf_size);
   if (conn->wbuf_sent == conn->wbuf_size) {
-    // response was fully sent,change state back
+    // response was fully sent, change state back
     conn->state = STATE_REQ;
     conn->wbuf_sent = 0;
     conn->wbuf_size = 0;
@@ -445,9 +425,8 @@ static void state_res(Conn *conn) {
 static void connection_io(Conn *conn) {
   if (conn->state == STATE_REQ) {
     state_req(conn);
-  } else if (conn->state == STATE_REQ) {
+  } else if (conn->state == STATE_RES) {
     state_res(conn);
-
   } else {
     assert(0); // not expected
   }
@@ -458,6 +437,7 @@ int main() {
   if (fd < 0) {
     die("socket()");
   }
+
   int val = 1;
   setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 
@@ -499,7 +479,7 @@ int main() {
       struct pollfd pfd = {};
       pfd.fd = conn->fd;
       pfd.events = (conn->state == STATE_REQ) ? POLLIN : POLLOUT;
-      pfd.events |= POLLERR;
+      pfd.events = pfd.events | POLLERR;
       poll_args.push_back(pfd);
     }
 
@@ -530,4 +510,6 @@ int main() {
       (void)accept_new_conn(fd2conn, fd);
     }
   }
+
+  return 0;
 }
