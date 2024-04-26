@@ -110,10 +110,10 @@ void hm_insert(HMap *hmap, HNode *node) {
 HNode *hm_pop(HMap *hmap, HNode *key, bool (*eq)(HNode *, HNode *)) {
   hm_help_resizing(hmap);
   if (HNode **from = h_lookup(&hmap->ht1, key, eq)) {
-    return h_detach(*hmap->ht1, from);
+    return h_detach(&hmap->ht1, from);
   }
   if (HNode **from = h_lookup(&hmap->ht2, key, eq)) {
-    return h_detach(*hmap->ht2, from);
+    return h_detach(&hmap->ht2, from);
   }
   return NULL;
 }
