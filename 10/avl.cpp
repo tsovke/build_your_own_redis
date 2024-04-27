@@ -115,7 +115,33 @@ static AVLNode *avl_del(AVLNode *node) {
     }
     if (parent) {
       // attach the left sbutree to the parent
-      ()
+      (parent->left == node ? parent->left : parent->right) = node->left;
+      return avl_fix(parent);
+    } else {
+      // removeing root?
+      return node->left;
+    }
+  } else {
+    // swap the node with its next sibling
+    AVLNode *victim = node->right;
+    while (victim->left) {
+      victim = victim->left;
+    }
+    AVLNode *root = avl_del(victim);
+    *victim = *node;
+    if (victim->left) {
+      victim->left->parent = victim;
+    }
+    if (victim->right) {
+      victim->right->parent = victim;
+    }
+    AVLNode *parent = node->parent;
+    if (parent) {
+      (parent->left == node ? parent->left : parent->right) = node->left;
+      return root;
+    } else {
+      // removing root?
+      return victim;
     }
   }
 }
