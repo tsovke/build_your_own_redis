@@ -79,25 +79,27 @@ static AVLNode *avl_fix_right(AVLNode *root) {
 }
 
 // fix imbalanced nodes and maintain invariants until the root is reached
-static AVLNode *avl_fix(AVLNode *node){
+static AVLNode *avl_fix(AVLNode *node) {
   while (true) {
     avl_update(node);
-  
 
-    uint32_t l=avl_depth(node->left);
-    uint32_t r=avl_depth(node->right);
+    uint32_t l = avl_depth(node->left);
+    uint32_t r = avl_depth(node->right);
 
-    AVLNode **from=NULL;
+    AVLNode **from = NULL;
     if (node->parent) {
-      from=(node->parent->left==node)?
-      &node->parent->left:&node->parent->right;
+      from = (node->parent->left == node) ? &node->parent->left
+                                          : &node->parent->right;
     }
-    if (l==r+2) {
-      node=avl_fix_left(node);
-    }else
-    if (r==l+2) {
-      node=avl_fix_right(node);
+    if (l == r + 2) {
+      node = avl_fix_left(node);
+    } else if (r == l + 2) {
+      node = avl_fix_right(node);
     }
-    
+    if (!from) {
+      return node;
+    }
+    *from = node;
+    node = node->parent;
   }
 }
