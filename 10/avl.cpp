@@ -70,3 +70,34 @@ static AVLNode *avl_fix_left(AVLNode *root) {
   }
   return rot_right(root);
 }
+// the right subtree is too deep
+static AVLNode *avl_fix_right(AVLNode *root) {
+  if (avl_depth(root->right->right) < avl_depth(root->right->left)) {
+    root->right = rot_right(root->right);
+  }
+  return rot_left(root);
+}
+
+// fix imbalanced nodes and maintain invariants until the root is reached
+static AVLNode *avl_fix(AVLNode *node){
+  while (true) {
+    avl_update(node);
+  
+
+    uint32_t l=avl_depth(node->left);
+    uint32_t r=avl_depth(node->right);
+
+    AVLNode **from=NULL;
+    if (node->parent) {
+      from=(node->parent->left==node)?
+      &node->parent->left:&node->parent->right;
+    }
+    if (l==r+2) {
+      node=avl_fix_left(node);
+    }else
+    if (r==l+2) {
+      node=avl_fix_right(node);
+    }
+    
+  }
+}
