@@ -1,5 +1,6 @@
 #include "avl.cpp" //lazy
 #include <assert.h>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <set>
@@ -28,7 +29,7 @@ static void add(Container &c, uint32_t val) {
 
   AVLNode *cur = NULL;      // current node
   AVLNode **from = &c.root; // the incoming pointer to the next node
-  while (*from) {
+  while (*from) {           // tree search
     cur = *from;
     uint32_t node_val = container_of(cur, Data, node)->val;
     from = (val < node_val) ? &cur->left : &cur->right;
@@ -36,4 +37,32 @@ static void add(Container &c, uint32_t val) {
   *from = &data->node; // attach the new node
   data->node.parent = cur;
   c.root = avl_fix(&data->node);
+}
+
+static bool del(Container &c, uint32_t val) {
+  AVLNode *cur = c.root;
+  while (cur) {
+    uint32_t node_val = container_of(cur, Data, node)->val;
+    if (val == node_val) {
+      break;
+    }
+    cur = val < node_val ? cur->left : cur->right;
+  }
+  if (!cur) {
+    return false;
+  }
+
+  c.root = avl_del(cur);
+  delete container_of(cur, Data, node);
+  return true;
+}
+
+static void avl_verify(AVLNode *parent, AVLNode *node) {
+  if (!node) {
+    return;
+  }
+
+  assert(node->parent == parent);
+  avl_verify(node, node->left);
+  avl_verify(node, node->right);
 }
