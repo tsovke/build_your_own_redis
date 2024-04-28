@@ -1,9 +1,5 @@
-#include <cstdint>
-#include <ctime>
-#include <regex>
 #include <stddef.h>
 #include <stdint.h>
-#include <system_error>
 
 struct AVLNode {
   uint32_t depth = 0;
@@ -38,7 +34,6 @@ static AVLNode *rot_left(AVLNode *node) {
   if (new_node->left) {
     new_node->left->parent = node;
   }
-
   node->right = new_node->left;
   new_node->left = node;
   new_node->parent = node->parent;
@@ -53,7 +48,6 @@ static AVLNode *rot_right(AVLNode *node) {
   if (new_node->right) {
     new_node->right->parent = node;
   }
-
   node->left = new_node->right;
   new_node->right = node;
   new_node->parent = node->parent;
@@ -70,6 +64,7 @@ static AVLNode *avl_fix_left(AVLNode *root) {
   }
   return rot_right(root);
 }
+
 // the right subtree is too deep
 static AVLNode *avl_fix_right(AVLNode *root) {
   if (avl_depth(root->right->right) < avl_depth(root->right->left)) {
@@ -82,10 +77,8 @@ static AVLNode *avl_fix_right(AVLNode *root) {
 static AVLNode *avl_fix(AVLNode *node) {
   while (true) {
     avl_update(node);
-
     uint32_t l = avl_depth(node->left);
     uint32_t r = avl_depth(node->right);
-
     AVLNode **from = NULL;
     if (node->parent) {
       from = (node->parent->left == node) ? &node->parent->left
@@ -93,7 +86,7 @@ static AVLNode *avl_fix(AVLNode *node) {
     }
     if (l == r + 2) {
       node = avl_fix_left(node);
-    } else if (r == l + 2) {
+    } else if (l + 2 == r) {
       node = avl_fix_right(node);
     }
     if (!from) {
@@ -108,17 +101,17 @@ static AVLNode *avl_fix(AVLNode *node) {
 static AVLNode *avl_del(AVLNode *node) {
   if (node->right == NULL) {
     // no right subtree, replace the node with the left subtree
-    //  link the left subtree to the parent
+    // link the left subtree to the parent
     AVLNode *parent = node->parent;
     if (node->left) {
       node->left->parent = parent;
     }
     if (parent) {
-      // attach the left sbutree to the parent
+      // attach the left subtree to the parent
       (parent->left == node ? parent->left : parent->right) = node->left;
       return avl_fix(parent);
     } else {
-      // removeing root?
+      // removing root?
       return node->left;
     }
   } else {
@@ -128,6 +121,7 @@ static AVLNode *avl_del(AVLNode *node) {
       victim = victim->left;
     }
     AVLNode *root = avl_del(victim);
+
     *victim = *node;
     if (victim->left) {
       victim->left->parent = victim;
@@ -137,7 +131,7 @@ static AVLNode *avl_del(AVLNode *node) {
     }
     AVLNode *parent = node->parent;
     if (parent) {
-      (parent->left == node ? parent->left : parent->right) = node->left;
+      (parent->left == node ? parent->left : parent->right) = victim;
       return root;
     } else {
       // removing root?

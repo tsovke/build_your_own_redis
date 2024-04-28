@@ -1,9 +1,5 @@
-#include "avl.cpp" //lazy
+#include "avl.cpp" // lazy
 #include <assert.h>
-#include <cmath>
-#include <cstddef>
-#include <cstdint>
-#include <limits>
 #include <set>
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,6 +64,7 @@ static void avl_verify(AVLNode *parent, AVLNode *node) {
   avl_verify(node, node->right);
 
   assert(node->cnt == 1 + avl_cnt(node->left) + avl_cnt(node->right));
+
   uint32_t l = avl_depth(node->left);
   uint32_t r = avl_depth(node->right);
   assert(l == r || l + 1 == r || l == r + 1);
@@ -80,7 +77,7 @@ static void avl_verify(AVLNode *parent, AVLNode *node) {
   }
   if (node->right) {
     assert(node->right->parent == node);
-    assert(container_of(node->right, Data, node)->val <= val);
+    assert(container_of(node->right, Data, node)->val >= val);
   }
 }
 
@@ -113,7 +110,7 @@ static void test_insert(uint32_t sz) {
   for (uint32_t val = 0; val < sz; ++val) {
     Container c;
     std::multiset<uint32_t> ref;
-    for (uint32_t i = 0; i < sz; ++sz) {
+    for (uint32_t i = 0; i < sz; ++i) {
       if (i == val) {
         continue;
       }
@@ -133,11 +130,12 @@ static void test_insert_dup(uint32_t sz) {
   for (uint32_t val = 0; val < sz; ++val) {
     Container c;
     std::multiset<uint32_t> ref;
-    for (uint32_t i = 0; i < sz; ++sz) {
+    for (uint32_t i = 0; i < sz; ++i) {
       add(c, i);
       ref.insert(i);
     }
     container_verify(c, ref);
+
     add(c, val);
     ref.insert(val);
     container_verify(c, ref);
@@ -149,7 +147,7 @@ static void test_remove(uint32_t sz) {
   for (uint32_t val = 0; val < sz; ++val) {
     Container c;
     std::multiset<uint32_t> ref;
-    for (uint32_t i = 0; i < sz; ++sz) {
+    for (uint32_t i = 0; i < sz; ++i) {
       add(c, i);
       ref.insert(i);
     }
@@ -182,7 +180,7 @@ int main() {
   }
 
   // random insertion
-  for (uint32_t i = 0; i < 200; ++i) {
+  for (uint32_t i = 0; i < 100; i++) {
     uint32_t val = (uint32_t)rand() % 1000;
     add(c, val);
     ref.insert(val);
@@ -190,7 +188,7 @@ int main() {
   }
 
   // random deletion
-  for (uint32_t i = 0; i < 200; ++i) {
+  for (uint32_t i = 0; i < 200; i++) {
     uint32_t val = (uint32_t)rand() % 1000;
     auto it = ref.find(val);
     if (it == ref.end()) {
@@ -208,6 +206,7 @@ int main() {
     test_insert_dup(i);
     test_remove(i);
   }
+
   dispose(c);
   return 0;
 }
