@@ -1,7 +1,4 @@
 #include "avl.h"
-#include <cstddef>
-#include <cstdint>
-#include <ctime>
 
 static uint32_t avl_depth(AVLNode *node) { return node ? node->depth : 0; }
 
@@ -47,14 +44,15 @@ static AVLNode *rot_right(AVLNode *node) {
 
 // the left subtree is too deep
 static AVLNode *avl_fix_left(AVLNode *root) {
-  if (avl_depth(root->left->left) < avl_depth(root->right->right)) {
+  if (avl_depth(root->left->left) < avl_depth(root->left->right)) {
     root->left = rot_left(root->left);
   }
   return rot_right(root);
 }
+
 // the right subtree is too deep
 static AVLNode *avl_fix_right(AVLNode *root) {
-  if (avl_depth(root->right->right) < avl_depth(root->left->left)) {
+  if (avl_depth(root->right->right) < avl_depth(root->right->left)) {
     root->right = rot_right(root->right);
   }
   return rot_left(root);
@@ -73,8 +71,7 @@ AVLNode *avl_fix(AVLNode *node) {
     }
     if (l == r + 2) {
       node = avl_fix_left(node);
-    }
-    if (l + 2 == r) {
+    } else if (l + 2 == r) {
       node = avl_fix_right(node);
     }
     if (!from) {
@@ -109,6 +106,7 @@ AVLNode *avl_del(AVLNode *node) {
       victim = victim->left;
     }
     AVLNode *root = avl_del(victim);
+
     *victim = *node;
     if (victim->left) {
       victim->left->parent = victim;
@@ -130,7 +128,7 @@ AVLNode *avl_del(AVLNode *node) {
 // offset into the succeeding or preceding node.
 // note: the worst-case is O(log(n)) regardless of how long the offset is.
 AVLNode *avl_offset(AVLNode *node, int64_t offset) {
-  int64_t pos = 0; // relatiive to the starting node
+  int64_t pos = 0; // relative to the starting node
   while (offset != pos) {
     if (pos < offset && pos + avl_cnt(node->right) >= offset) {
       // the target is inside the right subtree
@@ -147,10 +145,8 @@ AVLNode *avl_offset(AVLNode *node, int64_t offset) {
         return NULL;
       }
       if (parent->right == node) {
-
         pos -= avl_cnt(node->left) + 1;
       } else {
-
         pos += avl_cnt(node->right) + 1;
       }
       node = parent;
