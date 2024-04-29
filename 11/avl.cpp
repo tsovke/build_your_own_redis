@@ -85,3 +85,76 @@ AVLNode *avl_fix(AVLNode *node) {
   }
 }
 
+// detach a node and returns the new root of the tree
+AVLNode *avl_del(AVLNode *node) {
+  if (node->right == NULL) {
+    // no right subtree, replace the node with the left subtree
+    // link the left subtree to the parent
+    AVLNode *parent = node->parent;
+    if (node->left) {
+      node->left->parent = parent;
+    }
+    if (parent) {
+      // attach the left subtree to the parent
+      (parent->left == node ? parent->left : parent->right) = node->left;
+      return avl_fix(parent);
+    } else {
+      // removing root?
+      return node->left;
+    }
+  } else {
+    // swap the node with its next sibling
+    AVLNode *victim = node->right;
+    while (victim->left) {
+      victim = victim->left;
+    }
+    AVLNode *root = avl_del(victim);
+    *victim = *node;
+    if (victim->left) {
+      victim->left->parent = victim;
+    }
+    if (victim->right) {
+      victim->right->parent = victim;
+    }
+    AVLNode *parent = node->parent;
+    if (parent) {
+      (parent->left == node ? parent->left : parent->right) = victim;
+      return root;
+    } else {
+      // removing root?
+      return victim;
+    }
+  }
+}
+
+// offset into the succeeding or preceding node.
+// note: the worst-case is O(log(n)) regardless of how long the offset is.
+AVLNode *avl_offset(AVLNode *node, int64_t offset) {
+  int64_t pos = 0; // relatiive to the starting node
+  while (offset != pos) {
+    if (pos < offset && pos + avl_cnt(node->right) >= offset) {
+      // the target is inside the right subtree
+      node = node->right;
+      pos += avl_cnt(node->left) + 1;
+    } else if (pos > offset && pos - avl_cnt(node->left) <= offset) {
+      // the target is inside the left subtree
+      node = node->left;
+      pos -= avl_cnt(node->right) + 1;
+    } else {
+      // go to the parent
+      AVLNode *parent = node->parent;
+      if (!parent) {
+        return NULL;
+      }
+      if (parent->right == node) {
+
+        pos -= avl_cnt(node->left) + 1;
+      } else {
+
+        pos += avl_cnt(node->right) + 1;
+      }
+      node = parent;
+    }
+  }
+  return node;
+}
