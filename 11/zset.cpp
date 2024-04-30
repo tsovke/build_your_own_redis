@@ -7,6 +7,7 @@
 // proj
 #include "avl.h"
 #include "common.h"
+#include "hashtable.h"
 #include "zset.h"
 
 static ZNode *znode_new(const char *name, size_t len, double score) {
@@ -64,4 +65,49 @@ static void zset_update(ZSet *zset, ZNode *node, double score) {
   node->score = score;
   avl_init(&node->tree);
   tree_add(zset, node);
+}
+
+// add a new (score, name) tuple, or update the score of the existing tuple
+bool zset_add(ZSet *zset, const char *name, size_t len, double score) {
+  ZNode *node = zset_lookup(zset, name, len);
+  if (node) {
+    zset_update(zset, node, score);
+    return false;
+  } else {
+    node = znode_new(name, len, score);
+    hm_insert(&zset->hmap, &node->hmap);
+    tree_add(zset, node);
+    return true;
+  }
+}
+
+// a helper structure for the hashtable lookup
+struct HKey {
+  HNode node;
+  const char *name = NULL;
+  size_t len = 0;
+};
+
+static bool hcmp(HNode *node, HNode *key) {
+  ZNode *znode = container_of(node, ZNode, hmap);
+  HKey *hkey = container_of(key, HKey, node);
+  if (znode->len != hkey->len) {
+    return false;
+  }
+  return 0 == memcmp(znode->name, hkey->name, znode->len);
+}
+
+// lookup by name
+ZNode *zset_lookup(ZSet *zset, const char *name, size_t len) {
+  if (!zset->tree) {
+
+    return NULL;
+  }
+
+  HKey key;
+  key.node.hcode = str_hash((uint8_t *)name, len);
+  key.name = name;
+  key.len = len;
+  HNode *found = hm_lookup(&zset->hmap, &key.node, &hcmp);
+  return found ? container_of(found, ZNode, hmap) : NULL;
 }
