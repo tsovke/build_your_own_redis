@@ -165,3 +165,42 @@ static int32_t on_response(const uint8_t *data, size_t size) {
     return -1;
   }
 }
+
+static int32_t read_res(int fd) {
+  // 4 bytes header
+  char rbuf[4 + k_max_msg + 1];
+  errno = 0;
+  int32_t err = read_full(fd, rbuf, 4);
+
+  if (err) {
+    if (errno == 0) {
+      msg("EOF");
+
+    } else {
+      msg("read() error");
+    }
+    return err;
+  }
+
+  uint32_t len = 0;
+  memcpy(&len, rbuf, 4); // assume little endian
+  if (len > k_max_msg) {
+    msg("too long");
+    return -1;
+  }
+
+  // reply body
+  err = read_full(fd, &rbuf[4], len);
+  if (err) {
+    msg("read() error");
+    return err;
+  }
+
+  // print the result
+  int32_t rv = on_response((uint8_t *)&rbuf[4], len);
+  if (rv > 0 && (uint32_t)rv != len) {
+    msg("bad response");
+    rv = -1;
+  }
+  return rv;
+}
