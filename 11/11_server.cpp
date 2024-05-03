@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <assert.h>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <errno.h>
 #include <fcntl.h>
@@ -97,5 +98,41 @@ static int32_t accept_new_conn(std::vector<Conn *> &fd2conn, int fd) {
   conn->wbuf_size = 0;
   conn->wbuf_sent = 0;
   conn_put(fd2conn, conn);
+  return 0;
+}
+
+static void state_req(Conn *conn);
+static void state_res(Conn *conn);
+
+const size_t k_max_args = 1024;
+
+static int32_t parse_req(const uint8_t *data, size_t len,
+                         std::vector<std::string> &out) {
+  if (len < 4) {
+    return -1;
+  }
+  uint32_t n = 0;
+  memcpy(&n, &data[0], 4);
+  if (n > k_max_args) {
+    return -1;
+  }
+
+  size_t pos = 4;
+  while (n--) {
+    if (pos + 4 > len) {
+      return -1;
+    }
+    uint32_t sz = 0;
+    memcpy(&sz, &data[pos], 4);
+    if (pos + 4 + sz) {
+      return -1;
+    }
+    out.push_back(std::string((char *)&data[pos + 4], sz));
+    pos += 4 + sz;
+  }
+
+  if (pos != len) {
+    return -1; // trailing garbage
+  }
   return 0;
 }
