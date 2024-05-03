@@ -188,16 +188,26 @@ static void out_dbl(std::string &out, int64_t val) {
   out.append((char *)&val, 8);
 }
 
-static void out_err(std::string &out,int32_t code,const std::string &msg){
+static void out_err(std::string &out, int32_t code, const std::string &msg) {
   out.push_back(SER_ERR);
-  out.append((char *)&code,4);
-  uint32_t len=(uint32_t)msg.size();
-  out.append((char *)&len,4);
+  out.append((char *)&code, 4);
+  uint32_t len = (uint32_t)msg.size();
+  out.append((char *)&len, 4);
   out.append(msg);
 }
 
-static void out_arr(std::string &out,uint32_t n){
+static void out_arr(std::string &out, uint32_t n) {
   out.push_back(SER_ARR);
-  out.append((char *)&n,4);
+  out.append((char *)&n, 4);
 }
 
+static void *begin_arr(std::string &out) {
+  out.push_back(SER_ARR);
+  out.append("\0\0\0\0", 4);       // filled in end_arr()
+  return (void *)(out.size() - 4); // the `ctx` arg
+}
+static void end_arr(std::string &out, void *ctx, uint32_t n) {
+  size_t pos = (size_t)ctx;
+  assert(out[pos - 1] == SER_ARR);
+  memcpy(&out[pos], &n, 4);
+}
