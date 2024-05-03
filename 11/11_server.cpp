@@ -5,7 +5,6 @@
 #include <cstdlib>
 #include <errno.h>
 #include <fcntl.h>
-#include <math.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <poll.h>
@@ -178,6 +177,9 @@ static void out_str(std::string &out, const char *s, size_t size) {
   out.append((char *)&len, 4);
   out.append(s, len);
 }
+static void out_str(std::string &out,const std::string &val) {
+  return out_str(out,val.data(),val.size());
+}
 
 static void out_int(std::string &out, int64_t val) {
   out.push_back(SER_INT);
@@ -211,3 +213,21 @@ static void end_arr(std::string &out, void *ctx, uint32_t n) {
   assert(out[pos - 1] == SER_ARR);
   memcpy(&out[pos], &n, 4);
 }
+
+static void do_get(std::vector<std::string> &cmd,std::string &out){
+  Entry key;
+  key.key.swap(cmd[1]);
+  key.node.hcode=str_hash((uint8_t *)key.key.data(),key.key.size() );
+
+  HNode *node=hm_lookup(&g_data.db, &key.node,&entry_eq );
+  if (!node) {
+    return out_nil(out);
+  }
+  Entry *ent=container_of(node,Entry ,node );
+  if (ent->type!=T_STR) {
+    return out_err(out,ERR_TYPE,"expect string type");
+  }
+  return out_str(out, ent->val );
+}
+
+static void 
