@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <poll.h>
@@ -274,3 +275,22 @@ static void do_del(std::vector<std::string> &cmd, std::string &out) {
   }
   return out_int(out, node ? 1 : 0);
 }
+
+static void h_scan(HTab *tab, void (*f)(HNode *, void *), void *arg) {
+  if (tab->size == 0) {
+    return;
+  }
+  for (size_t i = 0; i < tab->mask + 1; ++i) {
+    HNode *node = tab->tab[i];
+    while (node) {
+      f(node, arg);
+      node = node->next;
+    }
+  }
+}
+
+static void cb_scan(HNode *node,void *arg){
+  std::string &out=*(std::string *)arg;
+  out_str(out,container_of(node,Entry ,node )->val);
+}
+
