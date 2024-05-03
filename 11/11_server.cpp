@@ -136,3 +136,17 @@ static int32_t parse_req(const uint8_t *data, size_t len,
   }
   return 0;
 }
+
+
+// The data structure for the key space.
+static struct {
+  HMap db;
+  
+}g_data;
+
+enum{
+  T_STR=0,
+  T_ZSET=1,
+};
+
+// 
