@@ -137,16 +137,49 @@ static int32_t parse_req(const uint8_t *data, size_t len,
   return 0;
 }
 
-
 // The data structure for the key space.
 static struct {
   HMap db;
-  
-}g_data;
 
-enum{
-  T_STR=0,
-  T_ZSET=1,
+} g_data;
+
+enum {
+  T_STR = 0,
+  T_ZSET = 1,
 };
 
-// 
+// the structure for the key
+struct Entry {
+  struct HNode node;
+  std::string key;
+  std::string val;
+  uint32_t type = 0;
+  ZSet *zset = NULL;
+};
+
+static bool entry_eq(HNode *lhs, HNode *rhs) {
+  struct Entry *le = container_of(lhs, Entry, node);
+  struct Entry *re = container_of(rhs, Entry, node);
+  return le->key == re->key;
+}
+
+enum {
+  ERR_UNKNOWN = 1,
+  ERR_2BIG = 2,
+  ERR_TYPE = 3,
+  ERR_ARG = 4,
+};
+
+static void out_nil(std::string &out) { out.push_back(SER_NIL); }
+
+static void out_str(std::string &out, const char *s, size_t size) {
+  out.push_back(SER_STR);
+  uint32_t len = (uint32_t)size;
+  out.append((char *)&len, 4);
+  out.append(s, len);
+}
+
+static void out_int(std::string &out, int64_t val) {
+  out.push_back(SER_INT);
+  out.append((char *)&val, 8);
+}
