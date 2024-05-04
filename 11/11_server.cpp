@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <assert.h>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -293,4 +294,24 @@ static void cb_scan(HNode *node,void *arg){
   std::string &out=*(std::string *)arg;
   out_str(out,container_of(node,Entry ,node )->val);
 }
+
+static void do_keys(std::vector<std::string> &cmd,std::string &out){
+  (void)cmd;
+  out_arr(out,(uint32_t)hm_size(&g_data.db) );
+  
+  h_scan(&g_data.db.ht1,&cb_scan,&out );
+  h_scan(&g_data.db.ht2,&cb_scan,&out );
+}
+
+static bool str2dbl(const std::string &s,double &out){
+  char *endp=NULL;
+  out=strtoll(s.c_str(),&endp,10);
+  return endp==s.c_str()+s.size()&&!std::isnan(out);
+}
+static bool str2int(const std::string &s,int64_t  &out){
+  char *endp=NULL;
+  out=strtoll(s.c_str(),&endp,10);
+  return endp==s.c_str()+s.size();
+}
+
 
