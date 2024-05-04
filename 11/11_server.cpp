@@ -9,6 +9,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <poll.h>
+#include <ratio>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -345,4 +346,22 @@ static void do_zadd(std::vector<std::string> &cmd, std::string &out) {
   const std::string &name = cmd[3];
   bool added = zset_add(ent->zset, name.data(), name.size(), score);
   return out_int(out, (int64_t)added);
+}
+
+static bool expect_zset(std::string &out,std::string &s,Entry **ent){
+  Entry key;
+  key.key.swap(s);
+  key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+  HNode *hnode = hm_lookup(&g_data.db, &key.node, &entry_eq);
+  if (!hnode) {
+    out_nil(out);
+    return false;
+  }
+
+  *ent=container_of(hnode,Entry ,node );
+  if ((*ent)->type!=T_ZSET) {
+    out_err(out,ERR_TYPE ,"expect zset" );
+    return false;
+  }
+  return true;
 }
