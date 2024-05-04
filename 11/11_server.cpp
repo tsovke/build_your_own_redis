@@ -348,7 +348,7 @@ static void do_zadd(std::vector<std::string> &cmd, std::string &out) {
   return out_int(out, (int64_t)added);
 }
 
-static bool expect_zset(std::string &out,std::string &s,Entry **ent){
+static bool expect_zset(std::string &out, std::string &s, Entry **ent) {
   Entry key;
   key.key.swap(s);
   key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
@@ -358,10 +358,25 @@ static bool expect_zset(std::string &out,std::string &s,Entry **ent){
     return false;
   }
 
-  *ent=container_of(hnode,Entry ,node );
-  if ((*ent)->type!=T_ZSET) {
-    out_err(out,ERR_TYPE ,"expect zset" );
+  *ent = container_of(hnode, Entry, node);
+  if ((*ent)->type != T_ZSET) {
+    out_err(out, ERR_TYPE, "expect zset");
     return false;
   }
   return true;
+}
+
+// zrem zset name
+static void do_zrem(std::vector<std::string> &cmd, std::string &out) {
+  Entry *ent = NULL;
+  if (!expect_zset(out, cmd[1], &ent)) {
+    return;
+  }
+
+  const std::string &name = cmd[2];
+  ZNode *znode = zset_pop(ent->zset, name.data(), name.size());
+  if (znode) {
+    znode_del(znode);
+  }
+  return out_int(out, znode ? 1 : 0);
 }
