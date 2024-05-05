@@ -392,3 +392,49 @@ static void do_zscore(std::vector<std::string> &cmd, std::string &out) {
   ZNode *znode = zset_lookup(ent->zset, name.data(), name.size());
   return znode ? out_dbl(out, znode->score) : out_nil(out);
 }
+
+// zquery zset score name offset limit
+static void do_zquery(std::vector<std::string> &cmd, std::string &out) {
+  // parse args
+  double score = 0;
+  if (!str2dbl(cmd[2], score)) {
+    return out_err(out, ERR_ARG, "expect fp number");
+  }
+
+  const std::string &name = cmd[3];
+  int64_t offset = 0;
+  int64_t limit = 0;
+  if (!str2int(cmd[4], offset)) {
+    return out_err(out, ERR_ARG, "expect int");
+  }
+  if (!str2int(cmd[5], offset)) {
+    return out_err(out, ERR_ARG, "expect int");
+  }
+
+  // get the zset
+  Entry *ent = NULL;
+  if (!expect_zset(out, cmd[1], &ent)) {
+    if (out[0] == SER_NIL) {
+      out.clear();
+      out_arr(out, 0);
+    }
+    return;
+  }
+  // look up the tuple
+  if (limit <= 0) {
+    return out_arr(out, 0);
+  }
+  ZNode *znode = zset_query(ent->zset, score, name.data(), name.size());
+  znode = znode_offset(znode, offset);
+
+  // output
+  void *arr = begin_arr(out);
+  uint32_t n = 0;
+  while (znode && (int64_t)n < limit) {
+    out_str(out, znode->name, znode->len);
+    out_dbl(out, znode->score);
+    znode = znode_offset(znode, +1);
+    n += 2;
+  }
+  end_arr(out, arr, n);
+}
