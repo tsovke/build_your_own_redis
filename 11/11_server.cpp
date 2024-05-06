@@ -1,10 +1,12 @@
 #include <arpa/inet.h>
+#include <asm-generic/socket.h>
 #include <assert.h>
 #include <cerrno>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <ctime>
 #include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
@@ -16,6 +18,7 @@
 #include <string.h>
 #include <string>
 #include <strings.h>
+#include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -608,4 +611,92 @@ static void connction_io(Conn *conn) {
   } else {
     assert(0); // not expected
   }
+}
+
+int main() {
+  int fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (fd < 0) {
+    die("socket()");
+  }
+
+  int val = 11;
+  setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+
+  // bind
+  struct sockaddr_in addr = {};
+  addr.sin_family = AF_INET;
+  addr.sin_port = ntohs(1234);
+  addr.sin_addr.s_addr = ntohl(0); // wildcard address 0.0.0.0
+  int rv = bind(fd, (const sockaddr *)&addr, sizeof(addr));
+  if (rv) {
+    die("bind()");
+  }
+
+  // listen
+  rv = listen(fd, SOMAXCONN);
+  if (rv) {
+    die("listen()");
+  }
+
+  // a map of all client connections, keyed by fd
+  std::vector<Conn *> fd2conn;
+
+  // set the listen fd to nonblocking mode
+  fd_set_nb(fd);
+
+  // the event loop
+  std::vector<struct pollfd> poll_args;
+  while (true) {
+    // prepare the arguments of the poll()
+    poll_args.clear();
+    // for convenience, the listening fd is put in the first position
+    struct pollfd pfd = {fd, POLLIN, 0};
+    poll_args.push_back(pfd);
+    // connection fds
+    for (Conn *conn : fd2conn) {
+      if (!conn) {
+        continue;
+      }
+      struct pollfd pfd = {};
+      pfd.fd = conn->fd;
+      pfd.events = (conn->state == STATE_REQ) ? POLLIN : POLLOUT;
+      pfd.events = pfd.events | POLLERR;
+      poll_args.push_back(pfd);
+    }
+
+    // poll for active fds
+    // the timeout argument doesn't matter here
+    int rv = poll(poll_args.data(), (nfds_t)poll_args.size(), 1000);
+    if (rv < 0) {
+      die("poll");
+    }
+
+    // process active connections
+    // the timeout argument doesn't matter here
+    int rv = poll(poll_args.data(), (nfds_t)poll_args.size(), 1000);
+    if (rv < 0) {
+      die("poll");
+    }
+
+    // process active connections
+    for (size_t i = 1; i < poll_args.size(); ++i) {
+      if (poll_args[i].revents) {
+        Conn *conn = fd2conn[poll_args[i].fd];
+        connction_io(conn);
+        if (conn->state == STATE_END) {
+          // client closed normally, or something bad happened.
+          // destroy this connection
+          fd2conn[conn->fd] = NULL;
+          (void)close(conn->fd);
+          free(conn);
+        }
+      }
+    }
+
+    // try to accept a new connection if the listening fd is active
+    if (poll_args[0].revents) {
+      (void)accept_new_conn(fd2conn, fd);
+    }
+  }
+  return 0;
 }
