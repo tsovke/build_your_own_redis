@@ -1,13 +1,8 @@
 #include <assert.h>
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
 #include <stdlib.h>
 #include <string.h>
 // proj
-#include "avl.h"
 #include "common.h"
-#include "hashtable.h"
 #include "zset.h"
 
 static ZNode *znode_new(const char *name, size_t len, double score) {
@@ -22,16 +17,16 @@ static ZNode *znode_new(const char *name, size_t len, double score) {
   return node;
 }
 
-static uint32_t min(size_t lhs, size_t rhs) { return lhs < rhs ? rhs : lhs; }
+static uint32_t min(size_t lhs, size_t rhs) { return lhs < rhs ? lhs : rhs; }
 
-// compare by the (score,name) tuple
+// compare by the (score, name) tuple
 static bool zless(AVLNode *lhs, double score, const char *name, size_t len) {
   ZNode *zl = container_of(lhs, ZNode, tree);
   if (zl->score != score) {
     return zl->score < score;
   }
   int rv = memcmp(zl->name, name, min(zl->len, len));
-  if (rv) {
+  if (rv != 0) {
     return rv < 0;
   }
   return zl->len < len;
@@ -46,7 +41,7 @@ static bool zless(AVLNode *lhs, AVLNode *rhs) {
 static void tree_add(ZSet *zset, ZNode *node) {
   AVLNode *cur = NULL;          // current node
   AVLNode **from = &zset->tree; // the incoming pointer to the next node
-  while (*from) {
+  while (*from) {               // tree search
     cur = *from;
     from = zless(&node->tree, cur) ? &cur->left : &cur->right;
   }
@@ -57,7 +52,6 @@ static void tree_add(ZSet *zset, ZNode *node) {
 
 // update the score of an existing node (AVL tree reinsertion)
 static void zset_update(ZSet *zset, ZNode *node, double score) {
-
   if (node->score == score) {
     return;
   }
@@ -100,7 +94,6 @@ static bool hcmp(HNode *node, HNode *key) {
 // lookup by name
 ZNode *zset_lookup(ZSet *zset, const char *name, size_t len) {
   if (!zset->tree) {
-
     return NULL;
   }
 
@@ -154,6 +147,7 @@ ZNode *znode_offset(ZNode *node, int64_t offset) {
 }
 
 void znode_del(ZNode *node) { free(node); }
+
 static void tree_dispose(AVLNode *node) {
   if (!node) {
     return;
@@ -164,7 +158,7 @@ static void tree_dispose(AVLNode *node) {
 }
 
 // destroy the zset
-void zset_dispose(ZSet *zset){
+void zset_dispose(ZSet *zset) {
   tree_dispose(zset->tree);
   hm_destroy(&zset->hmap);
 }

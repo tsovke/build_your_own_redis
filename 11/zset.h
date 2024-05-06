@@ -2,8 +2,6 @@
 
 #include "avl.h"
 #include "hashtable.h"
-#include <cstddef>
-#include <cstdint>
 
 struct ZSet {
   AVLNode *tree = NULL;
