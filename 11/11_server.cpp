@@ -1,15 +1,8 @@
 #include <arpa/inet.h>
-#include <asm-generic/socket.h>
 #include <assert.h>
-#include <cerrno>
-#include <cmath>
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
-#include <ctime>
 #include <errno.h>
 #include <fcntl.h>
-#include <netinet/in.h>
+#include <math.h>
 #include <netinet/ip.h>
 #include <poll.h>
 #include <stdint.h>
@@ -17,10 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
-#include <strings.h>
-#include <sys/poll.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <vector>
 // proj
@@ -130,7 +120,7 @@ static int32_t parse_req(const uint8_t *data, size_t len,
     }
     uint32_t sz = 0;
     memcpy(&sz, &data[pos], 4);
-    if (pos + 4 + sz) {
+    if (pos + 4 + sz > len) {
       return -1;
     }
     out.push_back(std::string((char *)&data[pos + 4], sz));
@@ -146,7 +136,6 @@ static int32_t parse_req(const uint8_t *data, size_t len,
 // The data structure for the key space.
 static struct {
   HMap db;
-
 } g_data;
 
 enum {
@@ -164,8 +153,8 @@ struct Entry {
 };
 
 static bool entry_eq(HNode *lhs, HNode *rhs) {
-  struct Entry *le = container_of(lhs, Entry, node);
-  struct Entry *re = container_of(rhs, Entry, node);
+  struct Entry *le = container_of(lhs, struct Entry, node);
+  struct Entry *re = container_of(rhs, struct Entry, node);
   return le->key == re->key;
 }
 
@@ -184,6 +173,7 @@ static void out_str(std::string &out, const char *s, size_t size) {
   out.append((char *)&len, 4);
   out.append(s, len);
 }
+
 static void out_str(std::string &out, const std::string &val) {
   return out_str(out, val.data(), val.size());
 }
@@ -192,7 +182,8 @@ static void out_int(std::string &out, int64_t val) {
   out.push_back(SER_INT);
   out.append((char *)&val, 8);
 }
-static void out_dbl(std::string &out, int64_t val) {
+
+static void out_dbl(std::string &out, double val) {
   out.push_back(SER_DBL);
   out.append((char *)&val, 8);
 }
@@ -215,6 +206,7 @@ static void *begin_arr(std::string &out) {
   out.append("\0\0\0\0", 4);       // filled in end_arr()
   return (void *)(out.size() - 4); // the `ctx` arg
 }
+
 static void end_arr(std::string &out, void *ctx, uint32_t n) {
   size_t pos = (size_t)ctx;
   assert(out[pos - 1] == SER_ARR);
@@ -230,6 +222,7 @@ static void do_get(std::vector<std::string> &cmd, std::string &out) {
   if (!node) {
     return out_nil(out);
   }
+
   Entry *ent = container_of(node, Entry, node);
   if (ent->type != T_STR) {
     return out_err(out, ERR_TYPE, "expect string type");
@@ -270,12 +263,11 @@ static void entry_del(Entry *ent) {
 }
 
 static void do_del(std::vector<std::string> &cmd, std::string &out) {
-
   Entry key;
   key.key.swap(cmd[1]);
   key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
 
-  HNode *node = hm_lookup(&g_data.db, &key.node, &entry_eq);
+  HNode *node = hm_pop(&g_data.db, &key.node, &entry_eq);
   if (node) {
     entry_del(container_of(node, Entry, node));
   }
@@ -297,22 +289,22 @@ static void h_scan(HTab *tab, void (*f)(HNode *, void *), void *arg) {
 
 static void cb_scan(HNode *node, void *arg) {
   std::string &out = *(std::string *)arg;
-  out_str(out, container_of(node, Entry, node)->val);
+  out_str(out, container_of(node, Entry, node)->key);
 }
 
 static void do_keys(std::vector<std::string> &cmd, std::string &out) {
   (void)cmd;
   out_arr(out, (uint32_t)hm_size(&g_data.db));
-
   h_scan(&g_data.db.ht1, &cb_scan, &out);
   h_scan(&g_data.db.ht2, &cb_scan, &out);
 }
 
 static bool str2dbl(const std::string &s, double &out) {
   char *endp = NULL;
-  out = strtoll(s.c_str(), &endp, 10);
-  return endp == s.c_str() + s.size() && !std::isnan(out);
+  out = strtod(s.c_str(), &endp);
+  return endp == s.c_str() + s.size() && !isnan(out);
 }
+
 static bool str2int(const std::string &s, int64_t &out) {
   char *endp = NULL;
   out = strtoll(s.c_str(), &endp, 10);
@@ -347,7 +339,7 @@ static void do_zadd(std::vector<std::string> &cmd, std::string &out) {
     }
   }
 
-  // add or updata the tuple
+  // add or update the tuple
   const std::string &name = cmd[3];
   bool added = zset_add(ent->zset, name.data(), name.size(), score);
   return out_int(out, (int64_t)added);
@@ -405,14 +397,13 @@ static void do_zquery(std::vector<std::string> &cmd, std::string &out) {
   if (!str2dbl(cmd[2], score)) {
     return out_err(out, ERR_ARG, "expect fp number");
   }
-
   const std::string &name = cmd[3];
   int64_t offset = 0;
   int64_t limit = 0;
   if (!str2int(cmd[4], offset)) {
     return out_err(out, ERR_ARG, "expect int");
   }
-  if (!str2int(cmd[5], offset)) {
+  if (!str2int(cmd[5], limit)) {
     return out_err(out, ERR_ARG, "expect int");
   }
 
@@ -425,6 +416,7 @@ static void do_zquery(std::vector<std::string> &cmd, std::string &out) {
     }
     return;
   }
+
   // look up the tuple
   if (limit <= 0) {
     return out_arr(out, 0);
@@ -447,6 +439,7 @@ static void do_zquery(std::vector<std::string> &cmd, std::string &out) {
 static bool cmd_is(const std::string &word, const char *cmd) {
   return 0 == strcasecmp(word.c_str(), cmd);
 }
+
 static void do_request(std::vector<std::string> &cmd, std::string &out) {
   if (cmd.size() == 1 && cmd_is(cmd[0], "keys")) {
     do_keys(cmd, out);
@@ -479,7 +472,7 @@ static bool try_one_request(Conn *conn) {
   uint32_t len = 0;
   memcpy(&len, &conn->rbuf[0], 4);
   if (len > k_max_msg) {
-    msg("too big");
+    msg("too long");
     conn->state = STATE_END;
     return false;
   }
@@ -487,6 +480,7 @@ static bool try_one_request(Conn *conn) {
     // not enough data in the buffer. Will retry in the next iteration
     return false;
   }
+
   // parse the request
   std::vector<std::string> cmd;
   if (0 != parse_req(&conn->rbuf[4], len, cmd)) {
@@ -510,8 +504,8 @@ static bool try_one_request(Conn *conn) {
   conn->wbuf_size = 4 + wlen;
 
   // remove the request from the buffer.
-  // note:frequent memmove is inefficient.
-  // note:need better handling for producton code.
+  // note: frequent memmove is inefficient.
+  // note: need better handling for production code.
   size_t remain = conn->rbuf_size - 4 - len;
   if (remain) {
     memmove(conn->rbuf, &conn->rbuf[4 + len], remain);
@@ -522,7 +516,7 @@ static bool try_one_request(Conn *conn) {
   conn->state = STATE_RES;
   state_res(conn);
 
-  // continue the outer loop if the request was fully porcessed
+  // continue the outer loop if the request was fully processed
   return (conn->state == STATE_REQ);
 }
 
@@ -538,7 +532,6 @@ static bool try_fill_buffer(Conn *conn) {
     // got EAGAIN, stop.
     return false;
   }
-
   if (rv < 0) {
     msg("read() error");
     conn->state = STATE_END;
@@ -593,7 +586,6 @@ static bool try_flush_buffer(Conn *conn) {
     conn->wbuf_size = 0;
     return false;
   }
-
   // still got some data in wbuf, could try to write again
   return true;
 }
@@ -603,7 +595,7 @@ static void state_res(Conn *conn) {
   }
 }
 
-static void connction_io(Conn *conn) {
+static void connection_io(Conn *conn) {
   if (conn->state == STATE_REQ) {
     state_req(conn);
   } else if (conn->state == STATE_RES) {
@@ -619,7 +611,7 @@ int main() {
     die("socket()");
   }
 
-  int val = 11;
+  int val = 1;
   setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 
   // bind
@@ -672,17 +664,10 @@ int main() {
     }
 
     // process active connections
-    // the timeout argument doesn't matter here
-    int rv = poll(poll_args.data(), (nfds_t)poll_args.size(), 1000);
-    if (rv < 0) {
-      die("poll");
-    }
-
-    // process active connections
     for (size_t i = 1; i < poll_args.size(); ++i) {
       if (poll_args[i].revents) {
         Conn *conn = fd2conn[poll_args[i].fd];
-        connction_io(conn);
+        connection_io(conn);
         if (conn->state == STATE_END) {
           // client closed normally, or something bad happened.
           // destroy this connection
@@ -698,5 +683,6 @@ int main() {
       (void)accept_new_conn(fd2conn, fd);
     }
   }
+
   return 0;
 }
