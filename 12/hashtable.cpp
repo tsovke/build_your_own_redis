@@ -85,3 +85,20 @@ HNode *hm_lookup(HMap *hmap, HNode *key, bool (*eq)(HNode *, HNode *)) {
   from = from ? from : h_lookup(&hmap->ht2, key, eq);
   return from ? *from : NULL;
 }
+
+const size_t k_max_load_factor=8;
+
+void hm_insert(HMap *hmap, HNode *node) {
+  if (!hmap->ht1.tab) {
+    h_init(&hmap->ht1, 4);
+  }
+  h_insert(&hmap->ht1, node);
+  if (!hmap->ht2.tab) {
+    // check whether we need to resize
+    size_t load_factor = hmap->ht1.size / (hmap->ht1.mask + 1);
+    if (load_factor >= k_max_load_factor) {
+      hm_start_resizing(hmap);
+    }
+  }
+  hm_help_resizing(hmap);
+}
