@@ -50,3 +50,23 @@ static HNode *h_detach(HTab *htab, HNode **from) {
 }
 
 const size_t k_resizing_work = 128; // constant work
+
+static void hm_help_resizing(HMap *hmap) {
+  size_t nwork = 0;
+  while (nwork < k_resizing_work && hmap->ht2.size > 0) {
+    // scan for nodes from ht2 and move them to ht1
+    HNode **from = &hmap->ht2.tab[hmap->resizing_pos];
+    if (!*from) {
+      hmap->resizing_pos++;
+      continue;
+    }
+
+    h_insert(&hmap->ht1, h_detach(&hmap->ht2, from));
+    nwork++;
+  }
+  if (hmap->ht2.size == 0 && hmap->ht2.tab) {
+    // done
+    free(hmap->ht2.tab);
+    hmap->ht2 = HTab{};
+  }
+}
