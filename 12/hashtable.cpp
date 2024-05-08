@@ -78,3 +78,10 @@ static void hm_start_resizing(HMap *hmap) {
   h_init(&hmap->ht1, (hmap->ht1.mask + 1) * 2);
   hmap->resizing_pos = 0;
 }
+
+HNode *hm_lookup(HMap *hmap, HNode *key, bool (*eq)(HNode *, HNode *)) {
+  hm_help_resizing(hmap);
+  HNode **from = h_lookup(&hmap->ht1, key, eq);
+  from = from ? from : h_lookup(&hmap->ht2, key, eq);
+  return from ? *from : NULL;
+}
