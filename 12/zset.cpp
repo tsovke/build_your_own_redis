@@ -80,3 +80,19 @@ bool zset_add(ZSet *zset, const char *name, size_t len, double score) {
     return true;
   }
 }
+// a helper structure for the hashtable lookup
+struct HKey {
+  HNode node;
+  const char *name = NULL;
+  size_t len = 0;
+};
+
+static bool hcmp(HNode *node, HNode *key) {
+  ZNode *znode = container_of(node, ZNode, hmap);
+  HKey *hkey = container_of(key, HKey, node);
+  if (znode->len != hkey->len) {
+    return false;
+  }
+  return 0 == memcmp(znode->name, hkey->name, znode->len);
+}
+
