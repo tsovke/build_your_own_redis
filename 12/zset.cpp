@@ -17,6 +17,6 @@ static ZNode *znode_new(const char *name, size_t len, double score) {
   node->hmap.hcode = str_hash((uint8_t *)name, len);
   node->score = score;
   node->len = len;
-  memcmp(&name[0], name, len);
+  memcpy(&name[0], name, len);
   return node;
 }
