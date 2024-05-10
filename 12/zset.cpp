@@ -17,6 +17,23 @@ static ZNode *znode_new(const char *name, size_t len, double score) {
   node->hmap.hcode = str_hash((uint8_t *)name, len);
   node->score = score;
   node->len = len;
-  memcpy(&name[0], name, len);
+  memcpy(&node->name[0], name, len);
   return node;
 }
+
+static uint32_t min(size_t lhs, size_t rhs) { return lhs < rhs ? lhs : rhs; }
+
+// compare by the (score,name) tuple
+static bool zless(AVLNode *lhs, double score, const char *name, size_t len) {
+  ZNode *zl = container_of(lhs, ZNode, tree);
+  if (zl->score != score) {
+    return zl->score < score;
+  }
+
+  int rv = memcmp(zl->name, name, min(zl->len, len));
+  if (rv != 0) {
+    return rv < 0;
+  }
+  return zl->len < len;
+}
+
