@@ -129,3 +129,19 @@ ZNode *zset_pop(ZSet *zset, const char *name, size_t len) {
   zset->tree = avl_del(&node->tree);
   return node;
 }
+
+// find the (score,name) tuple that is greater or equal to the argument.
+ZNode *zset_query(ZSet *zset, double score, const char *name, size_t len) {
+  AVLNode *found = NULL;
+  AVLNode *cur = zset->tree;
+  while (cur) {
+    if (zless(cur, score, name, len)) {
+      cur = cur->right;
+    } else {
+      found = cur; // candidate
+      cur = cur->left;
+    }
+  }
+  return found ? container_of(found, ZNode, tree) : NULL;
+}
+
