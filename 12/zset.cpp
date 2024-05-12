@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <assert.h>
 #include <cstddef>
 #include <cstdint>
@@ -145,3 +146,8 @@ ZNode *zset_query(ZSet *zset, double score, const char *name, size_t len) {
   return found ? container_of(found, ZNode, tree) : NULL;
 }
 
+// offset into the succeeding or preceding node.
+ZNode *znode_offset(ZNode *node, int64_t offset) {
+  AVLNode *tnode = node ? avl_offset(&node->tree, offset) : NULL;
+  return tnode ? container_of(tnode, ZNode, tree) : NULL;
+}
