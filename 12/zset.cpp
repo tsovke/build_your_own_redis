@@ -162,3 +162,8 @@ static void tree_dispose(AVLNode *node) {
   tree_dispose(node->right);
   znode_del(container_of(node, ZNode, tree));
 }
+// destroy the zset
+void zset_dispose(ZSet *zset) {
+  tree_dispose(zset->tree);
+  hm_destroy(&zset->hmap);
+}
