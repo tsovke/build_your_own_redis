@@ -5,6 +5,7 @@
 #include <fstream>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 // proj
 #include "avl.h"
 #include "common.h"
@@ -108,4 +109,23 @@ ZNode *zset_lookup(ZSet *zset, const char *name, size_t len) {
   key.len = len;
   HNode *found = hm_lookup(&zset->hmap, &key.node, &hcmp);
   return found ? container_of(found, ZNode, hmap) : NULL;
+}
+
+// deletion by name
+ZNode *zset_pop(ZSet *zset, const char *name, size_t len) {
+  if (!zset->tree) {
+    return NULL;
+  }
+
+  HKey key;
+  key.node.hcode = str_hash((uint8_t *)name, len);
+  key.name = name;
+  key.len = len;
+  HNode *found = hm_pop(&zset->hmap, &key.name, &hcmp);
+  if (!found) {
+    return NULL;
+  }
+  ZNode *node = container_of(found, ZNode, hmap);
+  zset->tree = avl_del(&node->tree);
+  return node;
 }
