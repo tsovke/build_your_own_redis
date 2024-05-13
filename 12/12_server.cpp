@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <assert.h>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
@@ -64,3 +65,5 @@ static struct {
   // timers for idle connections
   DList idle_list;
 } g_data;
+
+const size_t k_max_msg = 4096;
