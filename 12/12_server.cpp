@@ -6,7 +6,6 @@
 #include <ctime>
 #include <errno.h>
 #include <fcntl.h>
-#include <math.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <poll.h>
@@ -169,4 +168,18 @@ enum {
   TZSET = 1,
 };
 
+// the structure for the key
+struct Entry {
+  struct HNode node;
+  std::string key;
+  std::string val;
+  uint32_t type = 0;
+  ZSet *zset = NULL;
+};
 
+static bool entry_eq(HNode *lhs, HNode *rhs) {
+
+  struct Entry *le = container_of(lhs, struct Entry, node);
+  struct Entry *re = container_of(rhs, struct Entry, node);
+  return le->key == re->key;
+}
