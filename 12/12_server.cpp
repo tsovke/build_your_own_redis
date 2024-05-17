@@ -200,7 +200,11 @@ static void out_str(std::string &out, const char *s, size_t size) {
   out.append(s, len);
 }
 
+static void out_str(std::string &out, const std::string &val) {
+  return out_str(out, val.data(), val.size());
+}
 
-static void out_str(std::string &out,const std::string &val){
-  return out_str(out,val.data(),val.size());
+static void out_int(std::string &out, int64_t val) {
+  out.push_back(SER_INT);
+  out.append((char *)&val, 8);
 }
