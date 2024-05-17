@@ -279,3 +279,14 @@ static void do_set(std::vector<std::string> &cmd, std::string &out) {
   }
   return out_nil(out);
 }
+
+
+static void entry_del(Entry *ent){
+  switch (ent->type) {
+    case TZSET:
+      zset_dispose(ent->zset);
+      delete ent->zset;
+      break;
+  }
+  delete ent;
+}
