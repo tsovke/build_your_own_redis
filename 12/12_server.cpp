@@ -226,3 +226,14 @@ static void out_arr(std::string &out, uint32_t n) {
   out.append((char *)&n, 4);
 }
 
+static void *begin_arr(std::string &out) {
+  out.push_back(SER_ARR);
+  out.append("\0\0\0\0", 4);       // filled in end_arr()
+  return (void *)(out.size() - 4); // the `ctx` arg
+}
+
+static void end_arr(std::string &out, void *ctx, uint32_t n) {
+  size_t pos = (size_t)ctx;
+  assert(out[pos - 1] == SER_ARR);
+  memcpy(&out[pos], &n, 4);
+}
