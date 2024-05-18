@@ -314,3 +314,8 @@ static void h_scan(HTab *tab, void (*f)(HNode *, void *), void *arg) {
     }
   }
 }
+
+static void cb_scan(HNode *node,void *arg){
+  std::string &out=*(std::string*)arg;
+  out_str(out, container_of(node, Entry, node)->key);
+}
