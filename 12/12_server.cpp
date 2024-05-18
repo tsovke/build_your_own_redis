@@ -394,3 +394,28 @@ static bool expect_zset(std::string &out, std::string &s, Entry **ent) {
   }
   return true;
 }
+
+// zrem zset name
+static void do_zrem(std::vector<std::string> &cmd, std::string &out) {
+  Entry *ent = NULL;
+  if (!expect_zset(out, cmd[1], &ent)) {
+    return;
+  }
+  const std::string &name = cmd[2];
+  ZNode *znode = zset_pop(ent->zset, name.data(), name.size());
+  if (znode) {
+    znode_del(znode);
+  }
+  return out_int(out, znode ? 1 : 0);
+}
+
+static void do_zscore(std::vector<std::string> &cmd, std::string &out) {
+
+  Entry *ent = NULL;
+  if (!expect_zset(out, cmd[1], &ent)) {
+    return;
+  }
+  const std::string &name = cmd[2];
+  ZNode *znode = zset_lookup(ent->zset, name.data(), name.size());
+  return znode ? out_dbl(out, znode->score) : out_nil(out);
+}
