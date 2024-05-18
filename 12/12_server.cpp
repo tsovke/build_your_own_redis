@@ -454,4 +454,15 @@ static void do_zquery(std::vector<std::string> &cmd, std::string &out) {
   }
   ZNode *znode = zset_query(ent->zset, score, name.data(), name.size());
   znode = znode_offset(znode, offset);
+
+  // output
+  void *arr = begin_arr(out);
+  uint32_t n = 0;
+  while (znode && (int64_t)n < limit) {
+    out_str(out, znode->name, znode->len);
+    out_dbl(out, znode->score);
+    znode = znode_offset(znode, +1);
+    n += 2;
+  }
+  end_arr(out, arr, n);
 }
