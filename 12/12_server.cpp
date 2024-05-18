@@ -331,5 +331,10 @@ static void do_keys(std::vector<std::string> &cmd, std::string &out) {
 static bool str2dbl(const std::string &s, double &out) {
   char *endp = NULL;
   out = strtod(s.c_str(), &endp);
-  return endp = s.c_str() + s.size() && !isnan(out);
+  return endp == s.c_str() + s.size() && !std::isnan(out);
+}
+static bool str2int(const std::string &s, int64_t &out) {
+  char *endp = NULL;
+  out = strtoll(s.c_str(), &endp, 10);
+  return endp == s.c_str() + s.size();
 }
