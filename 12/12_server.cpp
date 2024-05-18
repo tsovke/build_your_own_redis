@@ -167,7 +167,7 @@ static int32_t parse_req(const uint8_t *data, size_t len,
 
 enum {
   T_STR = 0,
-  TZSET = 1,
+  T_ZSET = 1,
 };
 
 // the structure for the key
@@ -283,7 +283,7 @@ static void do_set(std::vector<std::string> &cmd, std::string &out) {
 
 static void entry_del(Entry *ent) {
   switch (ent->type) {
-  case TZSET:
+  case T_ZSET:
     zset_dispose(ent->zset);
     delete ent->zset;
     break;
@@ -337,4 +337,42 @@ static bool str2int(const std::string &s, int64_t &out) {
   char *endp = NULL;
   out = strtoll(s.c_str(), &endp, 10);
   return endp == s.c_str() + s.size();
+}
+
+// zadd zset score name
+
+static void do_zadd(std::vector<std::string> &cmd, std::string &out) {
+  double score = 0;
+  if (!str2dbl(cmd[2], score)) {
+
+    return out_err(out, ERR_TYPE, "expect fp number");
+  }
+
+  // look up or create the zset
+
+  Entry key;
+  key.key.swap(cmd[1]);
+  key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+
+  HNode *hnode = hm_lookup(&g_data.db, &key.node, &entry_eq);
+
+  Entry *ent = NULL;
+  if (!hnode) {
+    ent = new Entry();
+    ent->key.swap(key.key);
+    ent->node.hcode = key.node.hcode;
+    ent->type = T_ZSET;
+    ent->zset = new ZSet();
+    hm_insert(&g_data.db, &ent->node);
+  } else {
+    ent = container_of(hnode, Entry, node);
+    if (ent->type != T_ZSET) {
+      return out_err(out, ERR_TYPE, "expect zset");
+    }
+  }
+
+  // add or update the tuple
+  const std::string &name = cmd[3];
+  bool added = zset_add(ent->zset, name.data(), name.size(), score);
+  return out_int(out, (int64_t)added);
 }
