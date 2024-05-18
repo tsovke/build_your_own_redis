@@ -494,3 +494,41 @@ static void do_request(std::vector<std::string> &cmd, std::string &out) {
         out_err(out, ERR_UNKNOWN, "Unknown cmd");
     }
 }
+
+static bool try_one_request(Conn *conn){
+  //try to parse a request from the buffer
+  if (conn->rbuf_size<4) {
+    //not enough data in the buffer. Will retry in the next iteration
+    return false;
+  }
+  uint32_t len=0;
+  memcpy(&len,&conn->rbuf[0] ,4 );
+  if (len>k_max_msg) {
+    msg("too long");
+    conn->state=STATE_END;
+    return false;
+  }
+  if(4+len>conn->rbuf_size){
+    //not enough data in the buffer. Will retry in the next iteration
+    return false;
+  }
+
+  //parse the request
+  std::vector<std::string> cmd;
+  if (0!=parse_req(&conn->rbuf[4],len ,cmd )) {
+    msg("bad req");
+    conn->state=STATE_END;return false;
+  }
+
+  //got one request, generate the response.
+  std::string out;
+  do_request(cmd,out );
+
+  //pack the response into the buffer
+  if (4+out.size()>k_max_msg) {
+    out.clear();
+    out_err(out,ERR_2BIG ,"response is too big" );
+  }
+  uint32_t wlen=(uint32_t)out.size();
+  memcpy(&conn->wbuf[0],&wlen ,4 );
+}
