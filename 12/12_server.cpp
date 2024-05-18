@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#include <strings.h>
 #include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
@@ -465,4 +466,8 @@ static void do_zquery(std::vector<std::string> &cmd, std::string &out) {
     n += 2;
   }
   end_arr(out, arr, n);
+}
+
+static bool cmd_is(const std::string &word,const char *cmd){
+  return 0==strcasecmp(word.c_str(),cmd );
 }
