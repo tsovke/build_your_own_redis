@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <asm-generic/errno.h>
 #include <assert.h>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -325,4 +326,10 @@ static void do_keys(std::vector<std::string> &cmd, std::string &out) {
   out_arr(out, (uint32_t)hm_size(&g_data.db));
   h_scan(&g_data.db.ht1, &cb_scan, &out);
   h_scan(&g_data.db.ht2, &cb_scan, &out);
+}
+
+static bool str2dbl(const std::string &s, double &out) {
+  char *endp = NULL;
+  out = strtod(s.c_str(), &endp);
+  return endp = s.c_str() + s.size() && !isnan(out);
 }
