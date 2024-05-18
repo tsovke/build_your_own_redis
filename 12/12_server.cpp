@@ -301,3 +301,16 @@ static void do_del(std::vector<std::string> &cmd, std::string &out) {
   }
   return out_int(out, node ? 1 : 0);
 }
+
+static void h_scan(HTab *tab, void (*f)(HNode *, void *), void *arg) {
+  if (tab->size == 0) {
+    return;
+  }
+  for (size_t i = 0; i < tab->mask + 1; ++i) {
+    HNode *node = tab->tab[i];
+    while (node) {
+      f(node, arg);
+      node = node->next;
+    }
+  }
+}
