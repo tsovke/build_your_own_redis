@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <asm-generic/errno.h>
+#include <asm-generic/socket.h>
 #include <assert.h>
 #include <cerrno>
 #include <cmath>
@@ -18,6 +19,7 @@
 #include <string.h>
 #include <string>
 #include <strings.h>
+#include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <time.h>
@@ -683,5 +685,43 @@ static void process_timers() {
 
     printf("removing idle connection: %d\n", next->fd);
     conn_done(next);
+  }
+}
+
+int main() {
+  // some initializations
+  dlist_init(&g_data.idle_list);
+
+  int fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (fd < 0) {
+    die("socket()");
+  }
+
+  int val = 1;
+  setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+
+  // bind
+  struct sockaddr_in addr = {};
+  addr.sin_family = AF_INET;
+  addr.sin_port = ntohs(1234);
+  addr.sin_addr.s_addr = ntohl(0); // wildcard address 0.0.0.0
+  int rv = bind(fd, (const sockaddr *)&addr, sizeof(addr));
+  if (rv) {
+    die("bind()");
+  }
+
+  // listen
+  rv = listen(fd, SOMAXCONN);
+  if (rv) {
+    die("listen()");
+  }
+
+  // set the listen fd to nonblocking mode
+  fd_set_nb(fd);
+
+  // the event loop
+  std::vector<struct pollfd> poll_args;
+  while (true) {
+    
   }
 }
