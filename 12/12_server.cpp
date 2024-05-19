@@ -623,3 +623,27 @@ static bool try_flush_buffer(Conn *conn) {
   // still got some data in wbuf, could try to write again
   return true;
 }
+
+static void state_res(Conn *conn) {
+  while (try_flush_buffer(conn)) {
+  }
+}
+
+static void connection_io(Conn *conn) {
+  // waked up by poll, updata the idle timer
+  // by moving conn to the end of the list.
+  conn->idle_start = get_monotonic_usec();
+  dlist_detach(&conn->idle_list);
+  dlist_insert_before(&g_data.idle_list, &conn->idle_list);
+
+  // do the work
+  if (conn->state == STATE_REQ) {
+    state_req(conn);
+  } else if (conn->state == STATE_RES) {
+    state_res(conn);
+  } else {
+    assert(0); // not expected
+  }
+}
+
+const uint64_t k_idle_timeout_ms = 5 * 1000;
