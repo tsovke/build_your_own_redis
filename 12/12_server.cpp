@@ -647,3 +647,26 @@ static void connection_io(Conn *conn) {
 }
 
 const uint64_t k_idle_timeout_ms = 5 * 1000;
+
+static uint32_t next_timer_ms() {
+  if (dlist_empty(&g_data.idle_list)) {
+    return 10000; // no timer, the value doesn't matter
+  }
+
+  uint64_t now_us = get_monotonic_usec();
+  Conn *next = container_of(g_data.idle_list.next, Conn, idle_list);
+  uint64_t next_us = next->idle_start + k_idle_timeout_ms * 1000;
+  if (next_us <= now_us) {
+    // missed?
+    return 0;
+  }
+
+  return (uint32_t)((next_us - now_us) / 1000);
+}
+
+static void conn_done(Conn *conn) {
+  g_data.fd2conn[conn->fd] = NULL;
+  (void)close(conn->fd);
+  dlist_detach(&conn->idle_list);
+  free(conn);
+}
