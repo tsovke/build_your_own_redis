@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <asm-generic/errno.h>
 #include <assert.h>
+#include <cerrno>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -18,6 +19,7 @@
 #include <string>
 #include <strings.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 #include <vector>
@@ -552,3 +554,39 @@ static bool try_one_request(Conn *conn) {
   return (conn->state == STATE_REQ);
 }
 
+static bool try_fill_buffer(Conn *conn) {
+  // try to fill the buffer
+  assert(conn->rbuf_size < sizeof(conn->rbuf));
+  ssize_t rv = 0;
+  do {
+    size_t cap = sizeof(conn->rbuf) - conn->rbuf_size;
+    rv = read(conn->fd, &conn->rbuf[conn->rbuf_size], cap);
+  } while (rv < 0 && errno == EINTR);
+  if (rv < 0 && errno == EAGAIN) {
+    // got EAGAIN, stop
+    return false;
+  }
+  if (rv < 0) {
+    msg("read() error");
+    conn->state = STATE_END;
+    return false;
+  }
+  if (rv == 0) {
+    if (conn->rbuf_size > 0) {
+      msg("unexpected EOF");
+    } else {
+      msg("EOF");
+    }
+    conn->state = STATE_END;
+    return false;
+  }
+
+  conn->rbuf_size += (size_t)rv;
+  assert(conn->rbuf_size <= sizeof(conn->rbuf));
+
+  // Try to process requests one by one.
+  // Why is there a loop? Please read teh explanation of "pipelining".
+  while (try_one_request(conn)) {
+  }
+  return (conn->state == STATE_REQ);
+}
