@@ -722,6 +722,23 @@ int main() {
   // the event loop
   std::vector<struct pollfd> poll_args;
   while (true) {
+    // prepare the arguments of the poll()
+    poll_args.clear();
+    //for convenience, the listening fd is put in the first position
+    struct pollfd pfd={fd,POLLIN,0};
+    poll_args.push_back(pfd);
+    //connection fds
+    for (Conn *conn :g_data.fd2conn ) {
+      if (!conn) {
+        continue;
+      }
+      struct pollfd pfd={};
+      pfd.fd=conn->fd;
+      pfd.events=(conn->state==STATE_REQ)?POLLIN:POLLOUT;
+      pfd.events=pfd.events|POLLERR;
+      poll_args.push_back(pfd);
+    }
+
     
   }
 }
