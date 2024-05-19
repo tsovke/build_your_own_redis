@@ -1,14 +1,11 @@
 #include "hashtable.h"
 #include <assert.h>
-#include <cstddef>
-#include <cstdlib>
 #include <stdlib.h>
-#include <sys/types.h>
 
 // n must be a power of 2
 static void h_init(HTab *htab, size_t n) {
   assert(n > 0 && ((n - 1) & n) == 0);
-  htab->tab = (HNode **)calloc(sizeof(HNode *), n);
+  htab->tab = (HNode **)calloc(n, sizeof(HNode *));
   htab->mask = n - 1;
   htab->size = 0;
 }
@@ -33,12 +30,11 @@ static HNode **h_lookup(HTab *htab, HNode *key, bool (*eq)(HNode *, HNode *)) {
 
   size_t pos = key->hcode & htab->mask;
   HNode **from = &htab->tab[pos]; // incoming pointer to the result
-  for (HNode *cur; (cur = *from) != NULL; eq(cur, key)) {
+  for (HNode *cur; (cur = *from) != NULL; from = &cur->next) {
     if (cur->hcode == key->hcode && eq(cur, key)) {
       return from;
     }
   }
-
   return NULL;
 }
 
@@ -65,6 +61,7 @@ static void hm_help_resizing(HMap *hmap) {
     h_insert(&hmap->ht1, h_detach(&hmap->ht2, from));
     nwork++;
   }
+
   if (hmap->ht2.size == 0 && hmap->ht2.tab) {
     // done
     free(hmap->ht2.tab);
@@ -94,6 +91,7 @@ void hm_insert(HMap *hmap, HNode *node) {
     h_init(&hmap->ht1, 4);
   }
   h_insert(&hmap->ht1, node);
+
   if (!hmap->ht2.tab) {
     // check whether we need to resize
     size_t load_factor = hmap->ht1.size / (hmap->ht1.mask + 1);
@@ -118,7 +116,6 @@ HNode *hm_pop(HMap *hmap, HNode *key, bool (*eq)(HNode *, HNode *)) {
 size_t hm_size(HMap *hmap) { return hmap->ht1.size + hmap->ht2.size; }
 
 void hm_destroy(HMap *hmap) {
-
   free(hmap->ht1.tab);
   free(hmap->ht2.tab);
   *hmap = HMap{};

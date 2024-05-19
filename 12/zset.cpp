@@ -1,9 +1,7 @@
-#include <algorithm>
 #include <assert.h>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include <fstream>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -52,7 +50,7 @@ static void tree_add(ZSet *zset, ZNode *node) {
   AVLNode **from = &zset->tree; // the incoming pointer to the next node
   while (*from) {               // tree search
     cur = *from;
-    from = zless(*node->tree, cur) ? &cur->left : &cur->right;
+    from = zless(&node->tree, cur) ? &cur->left : &cur->right;
   }
   *from = &node->tree; // attach the new node
   node->tree.parent = cur;
@@ -122,7 +120,7 @@ ZNode *zset_pop(ZSet *zset, const char *name, size_t len) {
   key.node.hcode = str_hash((uint8_t *)name, len);
   key.name = name;
   key.len = len;
-  HNode *found = hm_pop(&zset->hmap, &key.name, &hcmp);
+  HNode *found = hm_pop(&zset->hmap, &key.node, &hcmp);
   if (!found) {
     return NULL;
   }
