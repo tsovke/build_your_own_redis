@@ -670,3 +670,18 @@ static void conn_done(Conn *conn) {
   dlist_detach(&conn->idle_list);
   free(conn);
 }
+
+static void process_timers() {
+  uint64_t now_us = get_monotonic_usec();
+  while (!dlist_empty(&g_data.idle_list)) {
+    Conn *next = container_of(g_data.idle_list.next, Conn, idle_list);
+    uint64_t next_us = next->idle_start + k_idle_timeout_ms * 1000;
+    if (next_us >= now_us + 1000) {
+      // not ready, the extra 1000us is for the ms resolution of poll()
+      break;
+    }
+
+    printf("removing idle connection: %d\n", next->fd);
+    conn_done(next);
+  }
+}
