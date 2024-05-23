@@ -58,3 +58,33 @@ static void verify(Container &c) {
     assert(*c.heap[i].ref == i);
   }
 }
+
+static void test_case(size_t sz) {
+  for (uint32_t j = 0; j < 2 + sz * 2; ++j) {
+    Container c;
+    for (uint32_t i = 0; i < sz; ++i) {
+      add(c, 1 + i * 2);
+    }
+    verify(c);
+    add(c, j);
+    verify(c);
+    dispose(c);
+  }
+  for (uint32_t j = 0; j < sz; ++j) {
+    Container c;
+    for (uint32_t i = 0; i < sz; ++i) {
+      add(c, i);
+    }
+    verify(c);
+    del(c, j);
+    verify(c);
+    dispose(c);
+  }
+}
+
+int main() {
+  for (uint32_t i = 0; i < 200; ++i) {
+    test_case(i);
+  }
+  return 0;
+}
