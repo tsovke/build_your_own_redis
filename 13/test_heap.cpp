@@ -47,3 +47,14 @@ static void del(Container &c, uint64_t val) {
   delete d;
   c.map.erase(it);
 }
+
+static void verify(Container &c) {
+  assert(c.heap.size() == c.map.size());
+  for (size_t i = 0; i < c.heap.size(); ++i) {
+    size_t l = heap_left(i);
+    size_t r = heap_right(i);
+    assert(l >= c.heap.size() || c.heap[l].val >= c.heap[i].val);
+    assert(r >= c.heap.size() || c.heap[r].val >= c.heap[i].val);
+    assert(*c.heap[i].ref == i);
+  }
+}
