@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <assert.h>
+#include <cstdlib>
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
@@ -12,6 +13,7 @@
 #include <string>
 #include <sys/socket.h>
 #include <time.h>
+#include <type_traits>
 #include <unistd.h>
 #include <vector>
 // proj
@@ -21,4 +23,10 @@
 #include "list.h"
 #include "zset.h"
 
+static void msg(const char *msg) { fprintf(stderr, "%s\n", msg); }
 
+static void die(const char *msg) {
+  int err = errno;
+  fprintf(stderr, "[%d] %s\n", err, msg);
+  abort();
+}
