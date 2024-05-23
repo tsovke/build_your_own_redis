@@ -50,7 +50,7 @@ static void heap_down(HeapItem *a, size_t pos, size_t len) {
 }
 
 void heap_update(HeapItem *a, size_t pos, size_t len) {
-  if (pos > 0 && a[heap_parent(pos).val > a[pos].val]) {
+  if (pos > 0 && a[heap_parent(pos)].val > a[pos].val) {
     heap_up(a, pos);
   } else {
     heap_down(a, pos, len);
