@@ -1,6 +1,8 @@
 #include <arpa/inet.h>
 #include <assert.h>
+#include <cstdint>
 #include <cstdlib>
+#include <ctime>
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
@@ -29,4 +31,10 @@ static void die(const char *msg) {
   int err = errno;
   fprintf(stderr, "[%d] %s\n", err, msg);
   abort();
+}
+
+static uint64_t get_monotonic_usec() {
+  timespec tv = {0, 0};
+  clock_gettime(CLOCK_MONOTONIC, &tv);
+  return uint64_t(tv.tv_sec) * 1000000 + tv.tv_nsec / 1000;
 }
