@@ -56,3 +56,16 @@ static void fd_set_nb(int fd) {
     die("fcntl error");
   }
 }
+
+struct Conn;
+
+// global variables
+static struct {
+  HMap db;
+  //a map of all client connections, keyed by fd
+  std::vector<Conn *> fd2conn;
+  // timers for idle connections
+  DList idle_list;
+  // timers for TTLs
+  std::vector<HeapItem> heap;
+}g_data;
