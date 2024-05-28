@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <assert.h>
+#include <bits/types/error_t.h>
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
@@ -37,4 +38,21 @@ static uint64_t get_monotonic_usec() {
   timespec tv = {0, 0};
   clock_gettime(CLOCK_MONOTONIC, &tv);
   return uint64_t(tv.tv_sec) * 1000000 + tv.tv_nsec / 1000;
+}
+
+static void fd_set_nb(int fd) {
+  errno = 0;
+  int flags = fcntl(fd, F_GETFL, 0);
+  if (errno) {
+    die("fcntl error");
+    return;
+  }
+
+  flags |= O_NONBLOCK;
+
+  errno = 0;
+  (void)fcntl(fd, F_SETFL, flags);
+  if (errno) {
+    die("fcntl error");
+  }
 }
