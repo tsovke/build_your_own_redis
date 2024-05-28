@@ -62,10 +62,18 @@ struct Conn;
 // global variables
 static struct {
   HMap db;
-  //a map of all client connections, keyed by fd
+  // a map of all client connections, keyed by fd
   std::vector<Conn *> fd2conn;
   // timers for idle connections
   DList idle_list;
   // timers for TTLs
   std::vector<HeapItem> heap;
-}g_data;
+} g_data;
+
+const size_t k_max_msg = 4096;
+
+enum {
+  STATE_REQ = 0,
+  STATE_RES = 1,
+  STATE_END = 2, // mark the connection for deletion
+};
