@@ -167,3 +167,8 @@ static int32_t parse_req(const uint8_t *data, size_t len,
   }
   return 0;
 }
+
+enum {
+  T_STR = 0,
+  T_ZSET = 1,
+};
