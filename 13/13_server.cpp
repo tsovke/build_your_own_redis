@@ -172,3 +172,20 @@ enum {
   T_STR = 0,
   T_ZSET = 1,
 };
+
+// the structure for the key
+struct Entry {
+  struct HNode node;
+  std::string key;
+  std::string val;
+  uint32_t type = 0;
+  ZSet *zset = NULL;
+  // for TTLs
+  size_t heap_idx = -1;
+};
+
+static bool entry_eq(HNode *lhs, HNode *rhs) {
+  struct Entry *le = container_of(lhs, struct Entry, node);
+  struct Entry *re = container_of(rhs, struct Entry, node);
+  return le->key == re->key;
+}
