@@ -131,3 +131,8 @@ static int32_t accept_new_conn(int fd) {
   conn_put(g_data.fd2conn, conn);
   return 0;
 }
+
+static void state_req(Conn *conn);
+static void state_res(Conn *conn);
+
+
