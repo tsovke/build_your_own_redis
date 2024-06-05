@@ -189,3 +189,10 @@ static bool entry_eq(HNode *lhs, HNode *rhs) {
   struct Entry *re = container_of(rhs, struct Entry, node);
   return le->key == re->key;
 }
+
+enum {
+  ERR_UNKNOWN = 1,
+  ERR_2BIG = 2,
+  ERR_TYPE = 3,
+  ERR_ARG = 4,
+};
