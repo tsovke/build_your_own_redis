@@ -694,3 +694,49 @@ static void state_res(Conn *conn) {
   while (try_flush_buffer(conn)) {
   }
 }
+
+static void connectionn_io(Conn *conn) {
+  // waked up by poll, update the idle timer
+  // by moving conn to the end of the list.
+  conn->idle_start = get_monotonic_usec();
+  dlist_detach(&conn->idle_list);
+  dlist_insert_before(&g_data.idle_list, &conn->idle_list);
+
+  // do the work
+  if (conn->state == STATE_REQ) {
+    state_req(conn);
+  } else if (conn->state == STATE_RES) {
+    state_res(conn);
+  } else {
+    assert(0); // not expected
+  }
+}
+
+const uint64_t k_idle_timeout_ms = 5 * 1000;
+
+static uint32_t next_timer_ms() {
+  uint64_t now_us = get_monotonic_usec();
+  uint64_t next_us = (uint64_t)-1;
+
+  // idle timers
+  if (!dlist_empty(&g_data.idle_list)) {
+    Conn *next = container_of(g_data.idle_list.next, Conn, idle_list);
+    next_us = next->idle_start + k_idle_timeout_ms * 1000;
+  }
+
+  // ttl timers
+  if (!g_data.heap.empty() && g_data.heap[0].val < next_us) {
+    next_us = g_data.heap[0].val;
+  }
+
+  if (next_us == (uint64_t)-1) {
+    return 10000; // no timer, the value doesn't matter
+  }
+
+  if (next_us <= now_us) {
+    // missed?
+    return 0;
+  }
+
+  return (uint32_t)((next_us - now_us) / 1000);
+}
