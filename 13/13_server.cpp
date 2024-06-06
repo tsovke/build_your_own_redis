@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <asm-generic/socket.h>
 #include <assert.h>
 #include <bits/types/error_t.h>
 #include <cerrno>
@@ -9,6 +10,7 @@
 #include <ctime>
 #include <errno.h>
 #include <fcntl.h>
+#include <memory>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <poll.h>
@@ -18,6 +20,7 @@
 #include <string.h>
 #include <string>
 #include <strings.h>
+#include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <time.h>
@@ -748,3 +751,118 @@ static void conn_done(Conn *conn) {
 }
 
 static bool hnode_same(HNode *lhs, HNode *rhs) { return lhs == rhs; }
+
+static void process_timers() {
+  // the extra 1000us is for the ms resolution of poll()
+  uint64_t now_us = get_monotonic_usec() + 1000;
+
+  // idle timers
+  while (!dlist_empty(&g_data.idle_list)) {
+    Conn *next = container_of(g_data.idle_list.next, Conn, idle_list);
+    uint64_t next_us = next->idle_start + k_idle_timeout_ms * 1000;
+    if (next_us >= now_us) {
+      // not ready
+      break;
+    }
+
+    printf("removing idle connection: %d\n", next->fd);
+    conn_done(next);
+  }
+
+  // TTL timers
+  const size_t k_max_works = 2000;
+  size_t nworks = 0;
+  while (!g_data.heap.empty() && g_data.heap[0].val < now_us) {
+    Entry *ent = container_of(g_data.heap[0].ref, Entry, heap_idx);
+    HNode *node = hm_pop(&g_data.db, &ent->node, hnode_same);
+    assert(node == &ent->node);
+    entry_del(ent);
+    if (nworks++ >= k_max_works) {
+      // don't stall the server if too many keys are expiring at once
+      break;
+    }
+  }
+}
+
+int main() {
+  // some initializations
+  dlist_init(&g_data.idle_list);
+
+  int fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (fd < 0) {
+    die("socket()");
+  }
+
+  int val = 1;
+  setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+
+  // bind
+  struct sockaddr_in addr = {};
+  addr.sin_family = AF_INET;
+  addr.sin_port = ntohs(1234);
+  addr.sin_addr.s_addr = ntohl(0); // wildcard address 0.0.0.0
+  int rv = bind(fd, (const sockaddr *)&addr, sizeof(addr));
+  if (rv) {
+    die("bind()");
+  }
+
+  // listen
+  rv = listen(fd, SOMAXCONN);
+  if (rv) {
+    die("listen()");
+  }
+
+  // set the listen fd to nonblocking mode
+  fd_set_nb(fd);
+
+  // the event loop
+  std::vector<struct pollfd> poll_args;
+  while (true) {
+    // prepare the arguments of the poll()
+    poll_args.clear();
+    // for convenience, the listening fd is put in the first position
+    struct pollfd pfd = {fd, POLLIN, 0};
+    poll_args.push_back(pfd);
+    // connection fds
+    for (Conn *conn : g_data.fd2conn) {
+      if (!conn) {
+        continue;
+      }
+      struct pollfd pfd = {};
+      pfd.fd = conn->fd;
+      pfd.events = (conn->state == STATE_REQ) ? POLLIN : POLLOUT;
+      pfd.events |= POLLERR;
+      poll_args.push_back(pfd);
+    }
+
+    // poll for active fds
+    int timeout_ms = (int)next_timer_ms();
+    int rv = poll(poll_args.data(), (nfds_t)poll_args.size(), timeout_ms);
+    if (rv) {
+      die("poll");
+    }
+
+    // process active connections
+    for (size_t i = 1; i < poll_args.size(); ++i) {
+      if (poll_args[i].revents) {
+        Conn *conn = g_data.fd2conn[poll_args[i].id];
+        connectionn_io(conn);
+        if (conn->state == STATE_END) {
+          // client closed normally, or something bad happened.
+          // destroy this connection
+          conn_done(conn);
+        }
+      }
+    }
+
+    // handle timers
+    process_timers();
+
+    // try to accept a new connection if the listening fd is active
+    if (poll_args[0].revents) {
+      (void)accept_new_conn(fd);
+    }
+  }
+
+  return 0;
+}
