@@ -360,3 +360,40 @@ static void entry_del(Entry *ent) {
   entry_set_ttl(ent, -1);
   delete ent;
 }
+
+static void do_del(std::vector<std::string> &cmd, std::string &out) {
+
+  Entry key;
+  key.key.swap(cmd[1]);
+  key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+
+  HNode *node = hm_pop(&g_data.db, &key.node, &entry_eq);
+  if (node) {
+    entry_del(container_of(node, Entry, node));
+  }
+  return out_int(out, node ? 1 : 0);
+}
+
+static void h_scan(HTab *tab, void (*f)(HNode *, void *), void *arg) {
+  if (tab->size == 0) {
+    return;
+  }
+  for (size_t i = 0; i < tab->mask + 1; ++i) {
+    HNode *node = tab->tab[i];
+    while (node) {
+      f(node, arg);
+      node = node->next;
+    }
+  }
+}
+
+static void cb_scan(HNode *node, void *arg) {
+  std::string &out = *(std::string *)arg;
+  out_str(out, container_of(node, Entry, node)->key);
+}
+static void do_keys(std::vector<std::string> &cmd, std::string &out) {
+  (void)cmd;
+  out_arr(out, (uint32_t)hm_size(&g_data.db));
+  h_scan(&g_data.db.ht1, &cb_scan, &out);
+  h_scan(&g_data.db.ht2, &cb_scan, &out);
+}
