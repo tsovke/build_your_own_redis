@@ -331,3 +331,32 @@ static void do_expire(std::vector<std::string> &cmd, std::string &out) {
   }
   return out_int(out, node ? 1 : 0);
 }
+static void do_ttl(std::vector<std::string> &cmd, std::string &out) {
+  Entry key;
+  key.key.swap(cmd[1]);
+  key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+
+  HNode *node = hm_lookup(&g_data.db, &key.node, &entry_eq);
+  if (!node) {
+    return out_int(out, -2);
+  }
+
+  Entry *ent = container_of(node, Entry, node);
+  if (ent->heap_idx == (size_t)-1) {
+    return out_int(out, -1);
+  }
+
+  uint64_t expire_at = g_data.heap[ent->heap_idx].val;
+  uint64_t now_us = get_monotonic_usec();
+  return out_int(out, expire_at > now_us ? (expire_at - now_us) / 1000 : 0);
+}
+static void entry_del(Entry *ent) {
+  switch (ent->type) {
+  case T_ZSET:
+    zset_dispose(ent->zset);
+    delete ent->zset;
+    break;
+  }
+  entry_set_ttl(ent, -1);
+  delete ent;
+}
