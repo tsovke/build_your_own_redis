@@ -440,3 +440,21 @@ static void do_zadd(std::vector<std::string> &cmd, std::string &out) {
   return out_int(out, (int64_t)added);
 }
 
+static bool expect_zset(std::string &out, std::string &s, Entry **ent) {
+  Entry key;
+  key.key.swap(s);
+  key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+
+  HNode *hnode = hm_lookup(&g_data.db, &key.node, &entry_eq);
+  if (!hnode) {
+    out_nil(out);
+    return false;
+  }
+
+  *ent = container_of(hnode, Entry, node);
+  if ((*ent)->type != T_ZSET) {
+    out_err(out, ERR_TYPE, "expect zset");
+    return false;
+  }
+  return true;
+}
