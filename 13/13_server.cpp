@@ -8,7 +8,6 @@
 #include <ctime>
 #include <errno.h>
 #include <fcntl.h>
-#include <math.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <poll.h>
@@ -20,7 +19,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <time.h>
-#include <type_traits>
 #include <unistd.h>
 #include <vector>
 // proj
@@ -427,8 +425,7 @@ static void do_zadd(std::vector<std::string> &cmd, std::string &out) {
     ent->zset = new ZSet();
     hm_insert(&g_data.db, &ent->node);
   } else {
-
-    Entry *ent = container_of(node, Entry, node);
+    Entry *ent = container_of(hnode, Entry, node);
     if (ent->type != T_ZSET) {
       return out_err(out, ERR_TYPE, "expect zset");
     }
@@ -457,4 +454,50 @@ static bool expect_zset(std::string &out, std::string &s, Entry **ent) {
     return false;
   }
   return true;
+}
+
+// zrem zset name
+
+static void do_zrem(std::vector<std::string> &cmd, std::string &out) {
+  Entry *ent = NULL;
+  if (!expect_zset(out, cmd[1], &ent)) {
+    return;
+  }
+
+  const std::string &name = cmd[2];
+  ZNode *znode = zset_pop(ent->zset, name.data(), name.size());
+  if (znode) {
+    znode_del(znode);
+  }
+  return out_int(out, znode ? 1 : 0);
+}
+// zscore zset name
+
+static void do_zscore(std::vector<std::string> &cmd, std::string &out) {
+  Entry *ent = NULL;
+  if (!expect_zset(out, cmd[1], &ent)) {
+    return;
+  }
+
+  const std::string &name = cmd[2];
+  ZNode *znode = zset_lookup(ent->zset, name.data(), name.size());
+  return znode ? out_dbl(out, znode->score) : out_nil(out);
+}
+// zquery zset score name offset limit
+static void do_zquery(std::vector<std::string> &cmd, std::string &out) {
+  // parse args
+  double score = 0;
+  if (!str2dbl(cmd[2], score)) {
+    return out_err(out, ERR_ARG, "expect fp number");
+  }
+  const std::string &name = cmd[3];
+  int64_t offset = 0;
+  int64_t limit = 0;
+
+  if (!str2int(cmd[4], offset)) {
+    return out_err(out, ERR_ARG, "expect int");
+  }
+  if (!str2int(cmd[5], limit)) {
+    return out_err(out, ERR_ARG, "expect int");
+  }
 }
