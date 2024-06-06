@@ -314,3 +314,20 @@ static bool str2int(const std::string &s, int64_t &out) {
   out = strtoll(s.c_str(), &endp, 10);
   return endp == s.c_str() + s.size();
 }
+static void do_expire(std::vector<std::string> &cmd, std::string &out) {
+  int64_t ttl_ms = 0;
+  if (!str2int(cmd[2], ttl_ms)) {
+    return out_err(out, ERR_ARG, "expect int64");
+  }
+
+  Entry key;
+  key.key.swap(cmd[1]);
+  key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+
+  HNode *node = hm_lookup(&g_data.db, &key.node, &entry_eq);
+  if (node) {
+    Entry *ent = container_of(node, Entry, node);
+    entry_set_ttl(ent, ttl_ms);
+  }
+  return out_int(out, node ? 1 : 0);
+}
