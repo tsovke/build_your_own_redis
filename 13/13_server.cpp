@@ -243,9 +243,19 @@ static void end_arr(std::string &out, void *ctx, uint32_t n) {
   memcpy(&out[pos], &n, 4);
 }
 
-
-static void do_get(std::vector<std::string> &cmd,std::string &out){
+static void do_get(std::vector<std::string> &cmd, std::string &out) {
   Entry key;
   key.key.swap(cmd[1]);
-  key.node.
+  key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+
+  HNode *node = hm_lookup(&g_data.db, &key.node, &entry_eq);
+  if (!node) {
+    return out_nil(out);
+  }
+
+  Entry *ent = container_of(node, Entry, node);
+  if (ent->type != T_STR) {
+    return out_err(out, ERR_TYPE, "expect string type");
+  }
+  return out_str(out, ent->val);
 }
