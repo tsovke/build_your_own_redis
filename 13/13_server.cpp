@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#include <strings.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <time.h>
@@ -500,4 +501,36 @@ static void do_zquery(std::vector<std::string> &cmd, std::string &out) {
   if (!str2int(cmd[5], limit)) {
     return out_err(out, ERR_ARG, "expect int");
   }
+
+  // get the zset
+  Entry *ent = NULL;
+  if (!expect_zset(out, cmd[1], &ent)) {
+    if (out[0] == SER_NIL) {
+      out.clear();
+      out_arr(out, 0);
+    }
+    return;
+  }
+
+  // look up the tuple
+  if (limit <= 0) {
+    return out_arr(out, 0);
+  }
+  ZNode *znode = zset_query(ent->zset, score, name.data(), name.size());
+  znode = znode_offset(znode, offset);
+
+  // output
+  void *arr = begin_arr(out);
+  uint32_t n = 0;
+  while (znode && (int64_t)n < limit) {
+    out_str(out, znode->name, znode->len);
+    out_dbl(out, znode->score);
+    znode = znode_offset(znode, +1);
+    n += 2;
+  }
+  end_arr(out, arr, n);
+}
+
+static bool cmd_is(const std::string &word, const char *cmd) {
+  return 0 == strcasecmp(word.c_str(), cmd);
 }
