@@ -740,3 +740,11 @@ static uint32_t next_timer_ms() {
 
   return (uint32_t)((next_us - now_us) / 1000);
 }
+static void conn_done(Conn *conn) {
+  g_data.fd2conn[conn->fd] = NULL;
+  (void)close(conn->fd);
+  dlist_detach(&conn->idle_list);
+  free(conn);
+}
+
+static bool hnode_same(HNode *lhs, HNode *rhs) { return lhs == rhs; }
