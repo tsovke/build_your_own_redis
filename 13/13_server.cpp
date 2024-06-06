@@ -10,7 +10,6 @@
 #include <ctime>
 #include <errno.h>
 #include <fcntl.h>
-#include <memory>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <poll.h>
@@ -845,7 +844,7 @@ int main() {
     // process active connections
     for (size_t i = 1; i < poll_args.size(); ++i) {
       if (poll_args[i].revents) {
-        Conn *conn = g_data.fd2conn[poll_args[i].id];
+        Conn *conn = g_data.fd2conn[poll_args[i].fd];
         connectionn_io(conn);
         if (conn->state == STATE_END) {
           // client closed normally, or something bad happened.
