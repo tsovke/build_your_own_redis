@@ -44,3 +44,7 @@ static HNode *h_detach(HTab *htab, HNode **from) {
   htab->size--;
   return node;
 }
+
+const size_t k_resizing_work = 128; // constant work
+
+
