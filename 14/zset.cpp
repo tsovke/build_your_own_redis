@@ -29,7 +29,7 @@ static bool zless(AVLNode *lhs, double score, const char *name, size_t len) {
   if (zl->score != score) {
     return zl->score < score;
   }
-  int rv = memcpy(zl->name, name, min(zl->len, len));
+  int rv = memcmp(zl->name, name, min(zl->len, len));
   if (rv != 0) {
     return rv < 0;
   }
