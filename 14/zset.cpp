@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <stdlib.h>
 #include <string.h>
 // proj
@@ -40,4 +41,15 @@ static bool zless(AVLNode *lhs, AVLNode *rhs) {
   return zless(lhs, zr->score, zr->name, zr->len);
 }
 
-
+// insert into the AVL tree
+static void tree_add(ZSet *zset, ZNode *node) {
+  AVLNode *cur = NULL;          // current node
+  AVLNode **from = &zset->tree; // the incoming pointer to the next node
+  while (*from) {
+    cur = *from;
+    from = zless(&node->tree, cur) ? &cur->left : &cur->right;
+  }
+  *from = &node->tree; // attach the new node
+  node->tree.parent = cur;
+  zset->tree = avl_fix(&node->tree);
+}
