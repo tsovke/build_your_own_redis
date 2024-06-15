@@ -95,3 +95,17 @@ static bool hcmp(HNode *node, HNode *key) {
   }
   return 0 == memcmp(znode->name, hkey->name, znode->len);
 }
+
+// lookup by name
+ZNode *zset_lookup(ZSet *zset, const char *name, size_t len) {
+  if (!zset->tree) {
+    return NULL;
+  }
+
+  HKey key;
+  key.node.hcode = str_hash((uint8_t *)name, len);
+  key.name = name;
+  key.len = len;
+  HNode *found = hm_lookup(&zset->hmap, &key.node, &hcmp);
+  return found ? container_of(found, ZNode, hmap) : NULL;
+}
