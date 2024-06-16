@@ -11,4 +11,7 @@ struct Work {
   void *arg = NULL;
 };
 
-
+struct TheadPool {
+  std::vector<pthread_t> threads;
+  void *arg = NULL;
+};
