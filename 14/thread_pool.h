@@ -13,5 +13,7 @@ struct Work {
 
 struct TheadPool {
   std::vector<pthread_t> threads;
-  void *arg = NULL;
+  std::deque<Work> queue;
+  pthread_mutex_t mu;
+  pthread_cond_t not_empty;
 };
