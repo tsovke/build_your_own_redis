@@ -1,9 +1,14 @@
 #pragma once
 
-#include <stdint.h>
-#include <stddef.h>
-#include <pthread.h>
-#include <vector>
 #include <deque>
+#include <pthread.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <vector>
+
+struct Work {
+  void (*f)(void *) = NULL;
+  void *arg = NULL;
+};
 
 
