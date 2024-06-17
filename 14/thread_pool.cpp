@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <assert.h>
 #include <bits/types/error_t.h>
+#include <cstddef>
 #include <cstdint>
 #include <ctime>
 #include <errno.h>
@@ -70,3 +71,11 @@ static struct {
   // the thread pool
   TheadPool tp;
 } g_data;
+
+const size_t k_max_msg = 4096;
+
+enum {
+  STATE_REQ = 0,
+  STATE_RES = 1,
+  STATE_END = 2, // mark the connection for deletion
+};
