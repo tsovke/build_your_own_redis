@@ -22,3 +22,18 @@ static void *worker(void *arg) {
   }
   return NULL;
 }
+
+void thread_pool_init(TheadPool *tp, size_t num_threads) {
+  assert(num_threads > 0);
+
+  int rv = pthread_mutex_init(&tp->mu, NULL);
+  assert(rv == 0);
+  rv = pthread_cond_init(&tp->not_empty, NULL);
+  assert(rv == 0);
+
+  tp->threads.resize(num_threads);
+  for (size_t i = 0; i < num_threads; ++i) {
+    int rv = pthread_create(&tp->threads[i], NULL, *worker, tp);
+    assert(rv == 0);
+  }
+}
