@@ -94,3 +94,10 @@ struct Conn {
   // timer
   DList idle_list;
 };
+
+static void conn_put(std::vector<Conn *> &fd2conn, struct Conn *conn) {
+  if (fd2conn.size() <= (size_t)conn->fd) {
+    fd2conn.resize(conn->fd + 1);
+  }
+  fd2conn[conn->fd] = conn;
+}
