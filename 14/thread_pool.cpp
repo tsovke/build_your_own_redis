@@ -3,10 +3,12 @@
 #include <bits/types/error_t.h>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <ctime>
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
+#include <netinet/in.h>
 #include <netinet/ip.h>
 #include <poll.h>
 #include <stdint.h>
@@ -100,4 +102,33 @@ static void conn_put(std::vector<Conn *> &fd2conn, struct Conn *conn) {
     fd2conn.resize(conn->fd + 1);
   }
   fd2conn[conn->fd] = conn;
+}
+
+static int32_t accept_new_conn(int fd) {
+  // accept
+  struct sockaddr_in client_addr = {};
+  socklen_t socklen = sizeof(client_addr);
+  int connfd = accept(fd, (struct sockaddr *)&client_addr, &socklen);
+  if (connfd < 0) {
+    msg("accept() error");
+    return -1; // error
+  }
+
+  // set the new connection fd to nonblocking mode
+  fd_set_nb(connfd);
+  // creating the struct Conn
+  struct Conn *conn = (struct Conn *)malloc(sizeof(struct Conn));
+  if (!conn) {
+    close(connfd);
+    return -1;
+  }
+  conn->fd = connfd;
+  conn->state = STATE_REQ;
+  conn->rbuf_size = 0;
+  conn->wbuf_size = 0;
+  conn->wbuf_sent = 0;
+  conn->idle_start = get_monotonic_usec();
+  dlist_insert_before(&g_data.idle_list, &conn->idle_list);
+  conn_put(g_data.fd2conn, conn);
+  return 0;
 }
