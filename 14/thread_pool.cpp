@@ -37,3 +37,14 @@ void thread_pool_init(TheadPool *tp, size_t num_threads) {
     assert(rv == 0);
   }
 }
+
+void thead_pool_queue(TheadPool *tp, void (*f)(void *), void *arg) {
+  Work w;
+  w.f = f;
+  w.arg = arg;
+
+  pthread_mutex_lock(&tp->mu);
+  tp->queue.push_back(w);
+  pthread_cond_signal(&tp->not_empty);
+  pthread_mutex_unlock(&tp->mu);
+}
