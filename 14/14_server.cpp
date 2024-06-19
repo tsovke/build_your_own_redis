@@ -219,3 +219,11 @@ static void out_dbl(std::string &out, int64_t val) {
   out.push_back(SER_DBL);
   out.append((char *)&val, 8);
 }
+
+static void out_err(std::string &out, int32_t code, const std::string &msg) {
+  out.push_back(SER_ERR);
+  out.append((char *)&code, 4);
+  uint32_t len = (uint32_t)msg.size();
+  out.append((char *)&len, 4);
+  out.append(msg);
+}
