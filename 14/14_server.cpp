@@ -233,3 +233,9 @@ static void out_arr(std::string &out, uint32_t n) {
   out.push_back(SER_ARR);
   out.append((char *)&n, 4);
 }
+
+static void *begin_arr(std::string &out) {
+  out.push_back(SER_ARR);
+  out.append("\0\0\0\0", 4);       // filled in end_arr()
+  return (void *)(out.size() - 4); // the `ctx` arg
+}
