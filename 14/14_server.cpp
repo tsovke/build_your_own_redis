@@ -285,3 +285,29 @@ static void do_set(std::vector<std::string> &cmd, std::string &out) {
   }
   return out_nil(out);
 }
+
+// set or remove the TTL
+static void entry_set_ttl(Entry *ent, int64_t ttl_ms) {
+  if (ttl_ms < 0 && ent->heap_idx != (size_t)-1) {
+    // erase an item from the heap
+    // by replacing it with the last item in the array.
+    size_t pos = ent->heap_idx;
+    g_data.heap[pos] = g_data.heap.back();
+    g_data.heap.pop_back();
+    if (pos < g_data.heap.size()) {
+      heap_update(g_data.heap.data(), pos, g_data.heap.size());
+    }
+    ent->heap_idx = -1;
+  } else if (ttl_ms >= 0) {
+    size_t pos = ent->heap_idx;
+    if (pos == (size_t)-1) {
+      // add an new item to the heap
+      HeapItem item;
+      item.ref = &ent->heap_idx;
+      g_data.heap.push_back(item);
+      pos = g_data.heap.size() - 1;
+    }
+    g_data.heap[pos].val = get_monotonic_usec() + (uint64_t)ttl_ms * 1000;
+    heap_update(g_data.heap.data(), pos, g_data.heap.size());
+  }
+}
