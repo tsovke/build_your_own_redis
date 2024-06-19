@@ -199,3 +199,10 @@ enum {
 };
 
 static void out_nil(std::string &out) { out.push_back(SER_NIL); }
+
+static void out_str(std::string &out, const char *s, size_t size) {
+  out.push_back(SER_STR);
+  uint32_t len = (uint32_t)size;
+  out.append((char *)&len, 4);
+  out.append(s, len);
+}
