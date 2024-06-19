@@ -11,6 +11,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <poll.h>
+#include <stdexcept>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -226,4 +227,9 @@ static void out_err(std::string &out, int32_t code, const std::string &msg) {
   uint32_t len = (uint32_t)msg.size();
   out.append((char *)&len, 4);
   out.append(msg);
+}
+
+static void out_arr(std::string &out, uint32_t n) {
+  out.push_back(SER_ARR);
+  out.append((char *)&n, 4);
 }
