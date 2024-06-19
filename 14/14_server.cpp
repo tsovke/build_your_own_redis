@@ -197,3 +197,5 @@ enum {
   ERR_TYPE = 3,
   ERR_ARG = 4,
 };
+
+static void out_nil(std::string &out) { out.push_back(SER_NIL); }
