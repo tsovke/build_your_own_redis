@@ -19,4 +19,4 @@ struct TheadPool {
 };
 
 void thread_pool_init(TheadPool *tp, size_t num_threads);
-void thread_pool_queue(TheadPool tp, void (*f)(void *), void *arg);
+void thread_pool_queue(TheadPool *tp, void (*f)(void *), void *arg);

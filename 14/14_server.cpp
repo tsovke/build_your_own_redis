@@ -7,6 +7,7 @@
 #include <ctime>
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/falloc.h>
 #include <math.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -369,3 +370,21 @@ static void entry_destroy(Entry *ent) {
 }
 
 static void entry_del_async(void *arg) { entry_destroy((Entry *)arg); }
+
+// dispose the entry after it got detached from the key space
+static void entry_del(Entry *ent) {
+  entry_set_ttl(ent, -1);
+
+  const size_t k_large_container_size = 10000;
+  bool too_big = false;
+  switch (ent->type) {
+  case T_ZSET:
+    too_big = hm_size(&ent->zset->hmap) > k_large_container_size;
+    break;
+  }
+  if (too_big) {
+    thread_pool_queue(&g_data.tp, &entry_del_async, ent);
+  } else {
+    entry_destroy(ent);
+  }
+}
