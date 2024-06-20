@@ -356,3 +356,16 @@ static void do_ttl(std::vector<std::string> &cmd, std::string &out) {
   uint64_t now_us = get_monotonic_usec();
   return out_int(out, expire_at > now_us ? (expire_at - now_us) / 1000 : 0);
 }
+
+// deallocate the key immediately
+static void entry_destroy(Entry *ent) {
+  switch (ent->type) {
+  case T_ZSET:
+    zset_dispose(ent->zset);
+    delete ent->zset;
+    break;
+  }
+  delete ent;
+}
+
+static void entry_del_async(void *arg) { entry_destroy((Entry *)arg); }
