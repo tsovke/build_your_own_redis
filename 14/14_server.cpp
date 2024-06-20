@@ -311,3 +311,9 @@ static void entry_set_ttl(Entry *ent, int64_t ttl_ms) {
     heap_update(g_data.heap.data(), pos, g_data.heap.size());
   }
 }
+
+static bool str2int(const std::string &s, int64_t &out) {
+  char *endp = NULL;
+  out = strtoll(s.c_str(), &endp, 10);
+  return endp == s.c_str() + s.size();
+}
