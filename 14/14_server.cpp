@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <assert.h>
 #include <bits/types/error_t.h>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -410,4 +411,75 @@ static void h_scan(HTab *tab, void (*f)(HNode *, void *), void *arg) {
       node = node->next;
     }
   }
+}
+
+static void cb_scan(HNode *node, void *arg) {
+  std::string &out = *(std::string *)arg;
+  out_str(out, container_of(node, Entry, node)->key);
+}
+
+static void do_keys(std::vector<std::string> &cmd, std::string &out) {
+  (void)cmd;
+  out_arr(out, (uint32_t)hm_size(&g_data.db));
+  h_scan(&g_data.db.ht1, &cb_scan, &out);
+  h_scan(&g_data.db.ht2, &cb_scan, &out);
+}
+
+static bool str2dbl(const std::string &s, double &out) {
+  char *endp = NULL;
+  out = strtod(s.c_str(), &endp);
+  return endp == s.c_str() + s.size() && !std::isnan(out);
+}
+
+// zadd zset score name
+static void do_zadd(std::vector<std::string> &cmd, std::string &out) {
+  double score = 0;
+  if (!str2dbl(cmd[2], score)) {
+    return out_err(out, ERR_ARG, "expect fp number");
+  }
+
+  // look up or create the zset
+  Entry key;
+  key.key.swap(cmd[1]);
+  key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+  HNode *hnode = hm_lookup(&g_data.db, &key.node, &entry_eq);
+
+  Entry *ent = NULL;
+  if (!hnode) {
+    ent = new Entry();
+    ent->key.swap(key.key);
+    ent->node.hcode = key.node.hcode;
+    ent->type = T_ZSET;
+    ent->zset = new ZSet();
+    hm_insert(&g_data.db, &ent->node);
+  } else {
+    ent = container_of(hnode, Entry, node);
+    if (ent->type != T_ZSET) {
+      return out_err(out, ERR_TYPE, "expect zset");
+    }
+  }
+
+  // add or update the tuple
+  const std::string &name = cmd[3];
+  bool added = zset_add(ent->zset, name.data(), name.size(), score);
+  return out_int(out, (int64_t)added);
+}
+
+static bool expect_zset(std::string &out, std::string &s, Entry **ent) {
+  Entry key;
+  key.key.swap(s);
+  key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+
+  HNode *hnode = hm_lookup(&g_data.db, &key.node, &entry_eq);
+  if (!hnode) {
+    out_nil(out);
+    return false;
+  }
+
+  *ent = container_of(hnode, Entry, node);
+  if ((*ent)->type != T_ZSET) {
+    out_err(out, ERR_TYPE, "expect zset");
+    return false;
+  }
+  return true;
 }
