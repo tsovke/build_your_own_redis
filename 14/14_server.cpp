@@ -386,3 +386,15 @@ static void entry_del(Entry *ent) {
     entry_destroy(ent);
   }
 }
+
+static void do_del(std::vector<std::string> &cmd, std::string &out) {
+  Entry key;
+  key.key.swap(cmd[1]);
+  key.node.hcode = str_hash((uint8_t *)key.key.data(), key.key.size());
+
+  HNode *node = hm_lookup(&g_data.db, &key.node, &entry_eq);
+  if (node) {
+    entry_del(container_of(node, Entry, node));
+  }
+  return out_int(out, node ? 1 : 0);
+}
