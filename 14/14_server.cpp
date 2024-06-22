@@ -8,11 +8,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/falloc.h>
-#include <math.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <poll.h>
-#include <stdexcept>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
