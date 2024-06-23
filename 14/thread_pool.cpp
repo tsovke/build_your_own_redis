@@ -1,7 +1,5 @@
 #include "thread_pool.h"
 #include <assert.h>
-#include <cstddef>
-#include <pthread.h>
 
 static void *worker(void *arg) {
   TheadPool *tp = (TheadPool *)arg;
@@ -33,12 +31,12 @@ void thread_pool_init(TheadPool *tp, size_t num_threads) {
 
   tp->threads.resize(num_threads);
   for (size_t i = 0; i < num_threads; ++i) {
-    int rv = pthread_create(&tp->threads[i], NULL, *worker, tp);
+    int rv = pthread_create(&tp->threads[i], NULL, &worker, tp);
     assert(rv == 0);
   }
 }
 
-void thead_pool_queue(TheadPool *tp, void (*f)(void *), void *arg) {
+void thread_pool_queue(TheadPool *tp, void (*f)(void *), void *arg) {
   Work w;
   w.f = f;
   w.arg = arg;

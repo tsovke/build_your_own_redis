@@ -1,0 +1,3 @@
+/home/xt/build_your_own_redis/14/build/CMakeFiles/14_server.dir
+/home/xt/build_your_own_redis/14/build/CMakeFiles/edit_cache.dir
+/home/xt/build_your_own_redis/14/build/CMakeFiles/rebuild_cache.dir

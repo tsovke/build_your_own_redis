@@ -729,7 +729,7 @@ static void state_res(Conn *conn) {
 static void connection_io(Conn *conn) {
   // waked up by poll, update the idle timer
   // by moving conn to the end of the list.
-  conn->idle_list = get_monotonic_usec();
+  conn->idle_start = get_monotonic_usec();
   dlist_detach(&conn->idle_list);
   dlist_insert_before(&g_data.idle_list, &conn->idle_list);
 
